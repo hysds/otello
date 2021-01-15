@@ -24,9 +24,11 @@ class _MozartBase(Base):
         :return: str, {job-queued, job-started, job-completed, job-failed, job-deduped, job-offline}
         """
         host = self._cfg['host']
-        endpoint = os.path.join(host, 'mozart/api/v0.1/job/status/%s' % _id)
-        print(endpoint)
-        req = requests.get(endpoint, verify=False)
+        endpoint = os.path.join(host, 'mozart/api/v0.1/job/status')
+        payload = {
+            'id': _id
+        }
+        req = requests.get(endpoint, params=payload, verify=False)
         if req.status_code != 200:
             raise Exception(req.text)
         res = req.json()
@@ -57,7 +59,6 @@ class _MozartBase(Base):
         """
         host = self._cfg['host']
         endpoint = os.path.join(host, 'mozart/api/v0.1/job/products/%s' % _id)
-        print(endpoint)
         req = requests.get(endpoint, verify=False)
         if req.status_code != 200:
             raise Exception(req.text)
@@ -107,7 +108,6 @@ class _MozartBase(Base):
 
         host = self._cfg['host']
         endpoint = os.path.join(host, 'mozart/api/v0.1/job/submit')
-        print(endpoint)
         req = requests.post(endpoint, data=job_payload, verify=False)
         if req.status_code != 200:
             raise Exception(req.text)
@@ -160,7 +160,6 @@ class _MozartBase(Base):
 
         host = self._cfg['host']
         endpoint = os.path.join(host, 'mozart/api/v0.1/job/submit')
-        print(endpoint)
         req = requests.post(endpoint, data=job_payload, verify=False)
         if req.status_code != 200:
             raise Exception(req.text)
@@ -240,7 +239,6 @@ class Mozart(_MozartBase):
 
         host = self._cfg['host']
         endpoint = os.path.join(host, 'mozart/api/v0.1/job/submit')
-        print(endpoint)
         req = requests.post(endpoint, data=job_payload, verify=False)
         if req.status_code != 200:
             raise Exception(req.text)
