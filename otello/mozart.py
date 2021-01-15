@@ -247,6 +247,11 @@ class Mozart(_MozartBase):
         return Job(job_id=job_id, cfg=self._cfg_file)
 
     def get_job_info(self, _id):
+        """
+        Retrieve entire job payload (ES document)
+        :param _id: str
+        :return: dict[str, str]
+        """
         return self._get_job_info(_id)
 
     def get_generated_products(self, _id):
@@ -257,7 +262,7 @@ class Mozart(_MozartBase):
         """
         self._get_generated_products(_id)
 
-    def get_status(self, _id):
+    def get_job_status(self, _id):
         """
         Return job-status
         :return: str, {job-queued, job-started, job-completed, job-failed, job-deduped, job-offline}
@@ -296,6 +301,10 @@ class Job(_MozartBase):
         return self._get_job_status(self.job_id)
 
     def get_info(self):
+        """
+        Retrieve entire job payload (ES document)
+        :return: dict[str, str]
+        """
         return self._get_job_info(self.job_id)
 
     def revoke(self, **kwargs):
