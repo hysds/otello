@@ -78,7 +78,7 @@ class _MozartBase(Base):
         if tags is None:
             tags = self.__generate_tags()
         if 9 < priority < 0:
-            print("priority not in range (0-9], defaulting to 5")
+            print("priority not in range [0-9], defaulting to 5")
             priority = 5
 
         query = {

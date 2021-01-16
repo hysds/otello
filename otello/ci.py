@@ -5,9 +5,6 @@ import requests
 from otello.base import Base
 
 
-# TODO every call will read the cfg file and extract the access_token and mozart host
-
-
 class CI(Base):
     def __init__(self, repo=None, branch=None, cfg=None):
         """
@@ -32,15 +29,16 @@ class CI(Base):
 
         data = {
             'repo': self.repo,
-            'branch': self.branch
         }
+        if self.branch:
+            data['branch'] = self.branch
         req = requests.get(endpoint, params=data, verify=False)
         if req.status_code != 200:
-            req.raise_for_status()
+            raise Exception(req.text)
         res = req.json()
         return res['success']
 
-    def register_job(self):
+    def register(self):
         """
         Register job in Jenkins using the Mozart REST API: -X POST /api/ci/register
         :return: None
@@ -50,13 +48,15 @@ class CI(Base):
 
         data = {
             'repo': self.repo,
-            'branch': self.branch
         }
+        if self.branch:
+            data['branch'] = self.branch
         req = requests.post(endpoint, data=data, verify=False)
-        req.raise_for_status()
+        if req.status_code != 200:
+            raise Exception(req.text)
         print(req.text)
 
-    def unregister_job(self):
+    def unregister(self):
         """
         Delete job in Jenkins: -X DELETE /api/ci/register
         :return: dict[str, str]
@@ -66,10 +66,12 @@ class CI(Base):
 
         payload = {
             'repo': self.repo,
-            'branch': self.branch
         }
+        if self.branch:
+            payload['branch'] = self.branch
         req = requests.delete(endpoint, params=payload, verify=False)
-        req.raise_for_status()
+        if req.status_code != 200:
+            raise Exception(req.text)
         return req.json()
 
     def submit_build(self):
@@ -82,10 +84,12 @@ class CI(Base):
 
         data = {
             'repo': self.repo,
-            'branch': self.branch
         }
-        req = requests.post(endpoint, params=data, verify=False)
-        req.raise_for_status()
+        if self.branch:
+            data['branch'] = self.branch
+        req = requests.post(endpoint, data=data, verify=False)
+        if req.status_code != 200:
+            raise Exception(req.text)
         return req.json()
 
     def get_build_status(self, build_number=None):
@@ -99,13 +103,15 @@ class CI(Base):
 
         payload = {
             'repo': self.repo,
-            'branch': self.branch
         }
+        if self.branch:
+            payload['branch'] = self.branch
         if build_number is not None:
             payload['build_number'] = build_number
 
         req = requests.get(endpoint, params=payload, verify=False)
-        req.raise_for_status()
+        if req.status_code != 200:
+            raise Exception(req.text)
         return req.json()
 
     def stop_build(self):
@@ -118,10 +124,12 @@ class CI(Base):
 
         payload = {
             'repo': self.repo,
-            'branch': self.branch
         }
+        if self.branch:
+            payload['branch'] = self.branch
         req = requests.delete(endpoint, params=payload, verify=False)
-        req.raise_for_status()
+        if req.status_code != 200:
+            raise Exception(req.text)
         return req.json()
 
     def delete_build(self, build_number=None):
@@ -134,11 +142,13 @@ class CI(Base):
 
         payload = {
             'repo': self.repo,
-            'branch': self.branch
         }
+        if self.branch:
+            payload['branch'] = self.branch
         if build_number is not None:
             payload['build_number'] = build_number
 
         req = requests.delete(endpoint, params=payload, verify=False)
-        req.raise_for_status()
+        if req.status_code != 200:
+            raise Exception(req.text)
         return req.json()
