@@ -13,9 +13,9 @@ class _MozartBase(Base):
         super().__init__(cfg=cfg)
 
     @staticmethod
-    def __generate_tags():
+    def __generate_tags(job_type):
         ts = datetime.now().isoformat()
-        return 'otello_purge_%s' % ts
+        return 'otello_%s_%s' % (job_type, ts)
 
     def _get_job_status(self, _id):
         """
@@ -49,7 +49,8 @@ class _MozartBase(Base):
         req = requests.get(endpoint, params=payload, verify=False)
         if req.status_code != 200:
             raise Exception(req.text)
-        return req.json()
+        res = req.json()
+        return res['result']
 
     def _get_generated_products(self, _id):
         """
@@ -62,7 +63,8 @@ class _MozartBase(Base):
         req = requests.get(endpoint, verify=False)
         if req.status_code != 200:
             raise Exception(req.text)
-        return req.json()
+        res = req.json()
+        return res['results']
 
     def _remove_job(self, _id, tags=None, priority=0, version='v1.0.5'):
         """
@@ -76,7 +78,7 @@ class _MozartBase(Base):
         if _id is None:
             raise RuntimeError("ElasticSearch job _id must be supplied")
         if tags is None:
-            tags = self.__generate_tags()
+            tags = self.__generate_tags('purge')
         if 9 < priority < 0:
             print("priority not in range [0-9], defaulting to 5")
             priority = 5
@@ -128,7 +130,7 @@ class _MozartBase(Base):
         if _id is None:
             raise RuntimeError("ElasticSearch job _id must be supplied")
         if tags is None:
-            tags = self.__generate_tags()
+            tags = self.__generate_tags('revoke')
         if 9 < priority < 0:
             print("priority not in range (0-9], defaulting to 5")
             priority = 5
@@ -181,7 +183,8 @@ class Mozart(_MozartBase):
         req = requests.get(endpoint, verify=False)
         if req.status_code != 200:
             raise Exception(req.text)
-        return req.json()
+        res = req.json()
+        return res['result']
 
     def submit_job(self, job_name=None, queue=None, tags=None, priority=0, params=None):
         """
@@ -219,7 +222,7 @@ class Mozart(_MozartBase):
         if job_name is None and queue is None:
             raise RuntimeError("")
         if tags is None:
-            tags = self.__generate_tags()
+            tags = self.__generate_tags('submit_job')
 
         if params is None:
             params = {}
@@ -260,7 +263,7 @@ class Mozart(_MozartBase):
         :param _id: ElasticSearch document id
         :return: dict[str, str]
         """
-        self._get_generated_products(_id)
+        return self._get_generated_products(_id)
 
     def get_job_status(self, _id):
         """
