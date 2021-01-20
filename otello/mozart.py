@@ -170,6 +170,13 @@ class _MozartBase(Base):
         print("purge job submitted, id: %s" % job_id)
         return Job(job_id=job_id, cfg=self._cfg_file)
 
+    # def _retry_job(self, **kwargs):
+    #     """
+    #     retry job
+    #     :param kwargs:
+    #     :return:
+    #     """
+
 
 class Mozart(_MozartBase):
     def get_jobs(self):
@@ -185,6 +192,42 @@ class Mozart(_MozartBase):
             raise Exception(req.text)
         res = req.json()
         return res['result']
+
+    def get_queue(self, job_name):
+        """
+        retrieve queue list and recommended queue
+        :param job_name: str, job_spec name
+        :return: dict[str, List[str]]
+        """
+        host = self._cfg['host']
+        endpoint = os.path.join(host, 'mozart/api/v0.1/queue/list')
+
+        payload = {
+            'id': job_name
+        }
+        req = requests.get(endpoint, params=payload, verify=False)
+        if req.status_code != 200:
+            raise Exception(req.text)
+        res = req.json()
+        return res['result']
+
+    def get_job_params(self, job_name):
+        """
+        grq/api/v0.1/grq/job-params?job_type=job-SCIFLO_GCOV:develop
+        :param job_name: str, job_spec name
+        :return: List[str]
+        """
+        host = self._cfg['host']
+        endpoint = os.path.join(host, 'grq/api/v0.1/grq/job-params')
+
+        payload = {
+            'job_type': job_name
+        }
+        req = requests.get(endpoint, params=payload, verify=False)
+        if req.status_code != 200:
+            raise Exception(req.text)
+        res = req.json()
+        return res['params']
 
     def submit_job(self, job_name=None, queue=None, tags=None, priority=0, params=None):
         """
@@ -204,7 +247,8 @@ class Mozart(_MozartBase):
         :param queue: str; job queue
         :param tags: (optional) str; what to tag your job (default to something if not supplied)
         :param priority: (optional) int; between 0-9
-        :param params: (optional) dict; job parameters: ex:
+        :param params: (optional) dict; job parameters: will grab default params if not supplied
+        ex:
             {
                 "entity_id": "LC80101172015002LGN00",
                 "min_lat": -79.09923,
@@ -226,9 +270,17 @@ class Mozart(_MozartBase):
 
         if params is None:
             params = {}
+            default_params = self.get_job_params(job_name)
+            for p in default_params:
+                param_name = p['name']
+                default_param_val = p.get('default', None)
+                if default_param_val:
+                    params[param_name] = default_param_val
+                    continue
+                if not p.get('optional', False) and default_param_val is None:
+                    raise RuntimeError('%s is not optional and default value not given' % param_name)
 
         job_split = job_name.split('/')
-
         job_payload = {
             'queue': queue,
             'priority': priority,
