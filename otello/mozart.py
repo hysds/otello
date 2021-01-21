@@ -106,7 +106,6 @@ class _MozartBase(Base):
             'params': json.dumps(params),
             'enable_dedup': False
         }
-        print(json.dumps(job_payload, indent=2))
 
         host = self._cfg['host']
         endpoint = os.path.join(host, 'mozart/api/v0.1/job/submit')
@@ -158,7 +157,6 @@ class _MozartBase(Base):
             'params': json.dumps(params),
             'enable_dedup': False
         }
-        print(json.dumps(job_payload, indent=2))
 
         host = self._cfg['host']
         endpoint = os.path.join(host, 'mozart/api/v0.1/job/submit')
@@ -179,7 +177,7 @@ class _MozartBase(Base):
 
 
 class Mozart(_MozartBase):
-    def get_jobs(self):
+    def get_job_types(self):
         """
         retrieve list of PGE jobs
         :return: List[dict[str, str]]
@@ -290,8 +288,6 @@ class Mozart(_MozartBase):
             'params': json.dumps(params),
             'enable_dedup': False
         }
-        print(json.dumps(job_payload, indent=2))
-
         host = self._cfg['host']
         endpoint = os.path.join(host, 'mozart/api/v0.1/job/submit')
         req = requests.post(endpoint, data=job_payload, verify=False)
