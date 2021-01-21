@@ -2,17 +2,12 @@ import os
 import yaml
 import getpass
 from pathlib import Path
-import json
 
 
 def initialize():
-    """
-    initialize .cfg file?
-    :return:
-    """
+    """initialize .cfg file
 
-    """
-    prompt for user input
+    prompt for user input:
     1. check ~/.config/otello/otello.cfg if it exists
     2. prompt user for HySDS host (Mozart IP or DNS)
        - if it exists in config.yml then use existing value if not supplied by user
@@ -61,13 +56,11 @@ def initialize():
 
         # Password
         password = getpass.getpass()
-        # TODO:
-        #  don't save password but use username + password to retrieve access_token and refresh_token from SSO provider
+        # TODO: use username + password to retrieve access_token and refresh_token from SSO provider
     else:
         config['auth'] = False
 
-    print(json.dumps(config, indent=2))
+    print('\n' + yaml.dump(config))
 
     with open(cfg_file, 'w') as f:
         yaml.dump(config, f)
-        print("")

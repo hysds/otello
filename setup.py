@@ -7,11 +7,11 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     zip_safe=False,
-    # entry_points={
-    #     'console_scripts': [
-    #         'otello = otello.cli:cli'
-    #     ]
-    # },
+    entry_points={
+        'console_scripts': [
+            'otello = otello.cli:cli'
+        ]
+    },
     install_requires=[
         'click',
         'pyyaml',
