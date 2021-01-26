@@ -616,7 +616,7 @@ class JobType(_MozartBase):
         }
         job_split = self.job_spec.split(':')
         job_payload = {
-            'queue': queue,
+            'queue': queue or self.default_queue,
             'priority': priority,
             'job_name': job_split[0],
             'tags': '["%s"]' % tag,
