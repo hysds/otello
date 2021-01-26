@@ -459,7 +459,7 @@ class JobType(_MozartBase):
                 self.params['hardwired_params'][param_name] = p['value']
 
             if p['from'] == 'submitter':
-                default_value = p.get('default_value', None)  # submitter params
+                default_value = p.get('default', None)  # submitter params
                 self.params['submitter_params'][param_name] = default_value
 
     def describe(self):
