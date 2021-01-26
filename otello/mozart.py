@@ -691,6 +691,7 @@ class Job(_MozartBase):
                 print(f"{status} {datetime.utcnow().isoformat('T')}")
                 if status not in ('job-failed', 'job-deduped', 'job-completed', 'job-offline'):
                     print('%s job status: %s' % (self.job_id, status))
+                else:
                     return status
             except Exception as e:
                 print(e)
