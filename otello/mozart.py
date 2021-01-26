@@ -1,6 +1,7 @@
 import os
 import json
 from datetime import datetime
+import time
 import requests
 
 from otello.base import Base
@@ -76,7 +77,7 @@ class _MozartBase(Base):
         :return:
         """
         if _id is None:
-            raise RuntimeError("ElasticSearch job _id must be supplied")
+            raise Exception("ElasticSearch job _id must be supplied")
         if tags is None:
             tags = self.__generate_tags('purge')
         if 9 < priority < 0:
@@ -127,7 +128,7 @@ class _MozartBase(Base):
         :return:
         """
         if _id is None:
-            raise RuntimeError("ElasticSearch job _id must be supplied")
+            raise Exception("ElasticSearch job _id must be supplied")
         if tags is None:
             tags = self.__generate_tags('revoke')
         if 9 < priority < 0:
@@ -168,19 +169,22 @@ class _MozartBase(Base):
         print("purge job submitted, id: %s" % job_id)
         return Job(job_id=job_id, cfg=self._cfg_file)
 
-    # def _retry_job(self, **kwargs):
+    # def _retry_job(self, job_id):
     #     """
     #     retry job
-    #     :param kwargs:
+    #     :param job_id: str, ElasticSearch job document ID
     #     :return:
     #     """
+    #     current_job_status = self._get_job_status(job_id)
+    #     if current_job_status in ('job-queued', 'job-started'):
+    #         raise Exception("job (%s) is currently in %s state, cannot retry" % (job_id, current_job_status))
 
 
 class Mozart(_MozartBase):
     def get_job_types(self):
         """
         retrieve list of PGE jobs
-        :return: List[dict[str, str]]
+        :return: dict[str, JobType]
         """
         host = self._cfg['host']
         endpoint = os.path.join(host, 'grq/api/v0.1/grq/on-demand')
@@ -189,7 +193,15 @@ class Mozart(_MozartBase):
         if req.status_code != 200:
             raise Exception(req.text)
         res = req.json()
-        return res['result']
+        job_types = res['result']
+
+        jobs = {}
+        for j in job_types:
+            hysds_io = j['hysds_io']
+            job_spec = j['job_spec']
+            label = j.get('label')
+            jobs[job_spec] = JobType(hysds_io=hysds_io, job_spec=job_spec, label=label)
+        return jobs
 
     def get_queue(self, job_name):
         """
@@ -200,9 +212,7 @@ class Mozart(_MozartBase):
         host = self._cfg['host']
         endpoint = os.path.join(host, 'mozart/api/v0.1/queue/list')
 
-        payload = {
-            'id': job_name
-        }
+        payload = {'id': job_name}
         req = requests.get(endpoint, params=payload, verify=False)
         if req.status_code != 200:
             raise Exception(req.text)
@@ -218,9 +228,7 @@ class Mozart(_MozartBase):
         host = self._cfg['host']
         endpoint = os.path.join(host, 'grq/api/v0.1/grq/job-params')
 
-        payload = {
-            'job_type': job_name
-        }
+        payload = {'job_type': job_name}
         req = requests.get(endpoint, params=payload, verify=False)
         if req.status_code != 200:
             raise Exception(req.text)
@@ -262,7 +270,7 @@ class Mozart(_MozartBase):
         """
         # TODO: need to check if /job/submit iterates through the results returned by the query
         if job_name is None and queue is None:
-            raise RuntimeError("")
+            raise Exception("")
         if tags is None:
             tags = self.__generate_tags('submit_job')
 
@@ -276,7 +284,7 @@ class Mozart(_MozartBase):
                     params[param_name] = default_param_val
                     continue
                 if not p.get('optional', False) and default_param_val is None:
-                    raise RuntimeError('%s is not optional and default value not given' % param_name)
+                    raise Exception('%s is not optional and default value not given' % param_name)
 
         job_split = job_name.split('/')
         job_payload = {
@@ -339,10 +347,237 @@ class Mozart(_MozartBase):
         return self._remove_job(_id, **kwargs)
 
 
+class JobType(_MozartBase):
+    def __init__(self, hysds_io=None, job_spec=None, label=None, cfg=None):
+        """
+        :param hysds_io: (str) hysds_ios ID
+        :param job_spec: (str) job-specification
+        """
+        super().__init__(cfg=cfg)
+
+        if hysds_io is None or job_spec is None:
+            raise Exception("both hysds_io and job_spec must be supplied")
+
+        self.hysds_io = hysds_io
+        self.job_spec = job_spec
+        self.label = label
+
+        self.hysds_ios = {}
+        self.job_spec = {}
+        self.queues = {}
+
+        self.params = {
+            'dataset_params': {},
+            'hardwired_params': {},
+            'submitter_params': {}
+        }
+
+    # def __str__(self):
+    #     """
+    #     Proper formatted job
+    #     :return: str
+    #     """
+
+    def get_queues(self):
+        """
+        retrieve and save the queue list and recommended queue(s)
+        :return: {
+            "queues": [...],
+            "recommended": [...]
+        }
+        """
+        host = self._cfg['host']
+        endpoint = os.path.join(host, 'mozart/api/v0.1/queue/list')
+
+        payload = {'id': self.job_spec}
+        req = requests.get(endpoint, params=payload, verify=False)
+        if req.status_code != 200:
+            raise Exception(req.text)
+        res = req.json()
+        queues = res['result']
+        self.queues = queues
+        return queues
+
+    def initialize(self):
+        """
+        makes necessary backend API calls to get the HySDS-io params, TODO: maybe sets other things also
+        :return:
+        """
+        host = self._cfg['host']
+        endpoint = os.path.join(host, 'grq/api/v0.1/hysds_io/type')
+
+        # TODO: params separated into 3 types (from): dataset_jpath, value, submitter
+        #       "dataset_jpath": probably check if "from" starts with dataset_jpath (ex. dataset_jpath:_source.dataset)
+        #                        will map to "dataset_params" (need more information)
+        #       "value": map to "hardwired_params" (DONE)
+        #       "submitter": map to "submitter_params" (DONE)
+
+        payload = {'id': self.hysds_io}
+        req = requests.get(endpoint, params=payload, verify=False)
+        if req.status_code != 200:
+            raise Exception(req.text)
+        res = req.json()
+
+        self.hysds_ios = res['result']  # saving the HySDS ios
+
+        params = res['result']['params']
+        for p in params:
+            param_name = p['name']
+            if p['from'] == 'value':  # hardwired params
+                self.params['hardwired_params'][param_name] = p['value']
+                continue
+            default_value = p.get('default_value', None)  # submitter params
+            self.params['submitter_params'][param_name] = default_value
+
+    def describe(self):
+        """
+        gets HySDS label, job_spec, hysds-ios, submitter parameters with descriptions of placeholders
+
+        Job type: job-SCIFLO_GCOV:gmanipon-test-ade
+        Tunable parameters:
+          name: processing_type
+          desc: Processing type: forward | reprocessing | urgent. Default: forward
+          choices: forward, reprocessing, urgent
+          ---
+          name: fullcovariance
+          desc: Compute cross-elements (True) or diagonals only (False). Default: False
+          choices: False, True
+          ---
+          name: output_type
+          desc: "Choices: 'None' (to turn off RTC) or 'gamma0'
+          choices: None, gamma0
+          ---
+          name: algorithm_type
+          desc: Choices: 'area-projection' (default) and 'David-Small'
+          choices: area-projection, David-Small
+          ---
+          name: output_posting
+          desc: Output posting in same units as output EPSG. Single value or list indicating the output posting for each
+                frequency. Default '[20, 100]'
+        Dataset parameters:
+          name: product_paths
+          ---
+          name: product_metadata
+          ---
+          name: input_dataset_id
+          ---
+          name: dataset_type
+        """
+        output = 'Job Type: %s\n' % self.hysds_ios['job-specification']
+        if self.hysds_ios.get('label'):
+            output += 'Label: %s\n' % self.hysds_ios['label']
+        output += '\n'
+
+        tunable_params = 'Tunable Parameters:\n'
+        dataset_params = 'Dataset Parameters:\n'
+
+        for p in self.hysds_ios['params']:
+            param_name = p['name']
+            placeholder = p['placeholder']
+
+            if p['from'] == 'submitter':
+                tunable_params += '\tname: %s\n' % param_name
+                if placeholder:
+                    tunable_params += '\tdesc: %s\n' % placeholder
+                if p['type'] == 'enum':
+                    tunable_params += '\tchoices: %s\n' % p['enumerables']
+                tunable_params += '\n'
+
+            if p['from'].startswith('dataset_jpath'):
+                dataset_params += '\tname: %s\n' % param_name
+                dataset_params += '\n'
+        print(output + '\n' + tunable_params + '\n' + dataset_params)
+
+    def set_submitter_params(self):
+        """
+        prompting user for submitter inputs
+        """
+        submitter_params = filter(lambda x: x['from'] == 'submitter', self.hysds_ios['params'])
+        for p in submitter_params:
+            param_name = p['name']
+            default_value = p.get('default_value', None)
+            placeholder = p.get('placeholder', None)
+
+            if placeholder:
+                print('%s: %s' % (param_name, placeholder))
+            else:
+                print(param_name)
+
+            if p['type'] == 'enum':
+                options = p['enumerables']
+                if default_value is not None:
+                    param_value = input('Set value\n options: %s\n skip to use default: %s' % (options, default_value))
+                    if not param_value:
+                        param_value = default_value
+                else:
+                    param_value = input('Set value for \n options: %s' % options)
+            else:
+                if default_value is not None:
+                    param_value = input('Set value, skip to use default (%s): ' % default_value)
+                    if not param_value:
+                        param_value = default_value
+                else:
+                    param_value = input('Set value: ')
+            self.params['submitter_params'][param_name] = param_value
+
+    def set_dataset_params(self, dataset=None):
+        """
+        dataset taken from Pele and sets it to the dataset params in hysds-ios
+        :param dataset: dict[str, str|dict|list]
+        """
+        if dataset is None:
+            raise Exception("dataset must be set for your job")
+
+        dataset_params = filter(lambda x: x['from'].startswith('dataset_jpath'), self.hysds_ios['params'])
+        for p in dataset_params:
+            param_name = p['name']
+            if 'lambda' in p:
+                f = eval(p['lambda'])
+                self.params['dataset_params'][param_name] = f(dataset)
+            else:
+                parsed_path = p['from'].replace('dataset_jpath:', '').replace('_source.', '')
+                if parsed_path == '_id':
+                    # case 1: if _id, get id instead from pele results
+                    self.params['dataset_params'][param_name] = dataset['id']
+                else:
+                    # case 2: remove dataset_jpath:_source, get list of paths and traverse
+                    parsed_path = parsed_path.split('.')
+                    for path in parsed_path:
+                        dataset = dataset[path]
+                    self.params['dataset_params'][param_name] = dataset
+
+    def get_hardwire_params(self):
+        return self.params['hardwired_params']
+
+    def get_dataset_params(self):
+        return self.params['dataset_params']
+
+    def get_submitter_params(self):
+        return self.params['submitter_params']
+
+    def submit(self, params=None, tag=None, priority=1):
+        """
+        :param tag:
+        :param priority:
+        :return: Job class object with _id
+        """
+        if params is None:
+            params = {
+                **self.params['dataset_params'],
+                **self.params['hardwired_params'],
+                **self.params['submitter_params']
+            }
+        print(params)
+        input("does these params look good? Y/N")
+
+
 class Job(_MozartBase):
     def __init__(self, job_id=None, cfg=None):
         super().__init__(cfg=cfg)
         self.job_id = job_id
+
+    def __str__(self):
+        return 'Mozart Job: <%s>' % self.job_id
 
     def get_status(self):
         """
@@ -380,3 +615,38 @@ class Job(_MozartBase):
         :return: dict[str, str]
         """
         return self._get_generated_products(self.job_id)
+
+    def wait_for_completion(self):
+        """
+        will loop (with 30 second delay) until the job compeltes (or fails)
+        :return: str: job status when job completed (or fails)
+        """
+        time.sleep(3)
+        while True:
+            try:
+                status = self.get_status()
+                print(f"{status} {datetime.utcnow().isoformat('T')}")
+                if status not in ('job-failed', 'job-deduped', 'job-completed', 'job-offline'):
+                    print('%s job status: %s' % (self.job_id, status))
+                    return status
+            except Exception as e:
+                print(e)
+            time.sleep(30)
+
+
+class JobSet(_MozartBase):
+    def __init__(self, job_set=None, cfg=None):
+        """
+        List of Job class objects to track multiple job submissions
+        :param job_set: list[Job], list of Job(s)
+        """
+        if job_set is None:
+            raise Exception("job_set must be supplied, ex. [<Job class object>, <Job class object>, ...]")
+        super().__init__(cfg=cfg)
+        self.job_set = job_set
+
+    def get_statuses(self):
+        pass
+
+    # def wait_for_completion(self):
+    #     pass
