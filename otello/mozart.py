@@ -363,7 +363,7 @@ class JobType(_MozartBase):
         self.label = label
 
         self.hysds_ios = {}
-        self.job_spec = {}
+        self.job_specs = {}
         self.queues = {}
 
         self.params = {
@@ -423,11 +423,13 @@ class JobType(_MozartBase):
         params = res['result']['params']
         for p in params:
             param_name = p['name']
+
             if p['from'] == 'value':  # hardwired params
                 self.params['hardwired_params'][param_name] = p['value']
-                continue
-            default_value = p.get('default_value', None)  # submitter params
-            self.params['submitter_params'][param_name] = default_value
+
+            if p['from'] == 'submitter':
+                default_value = p.get('default_value', None)  # submitter params
+                self.params['submitter_params'][param_name] = default_value
 
     def describe(self):
         """
@@ -473,7 +475,7 @@ class JobType(_MozartBase):
 
         for p in self.hysds_ios['params']:
             param_name = p['name']
-            placeholder = p['placeholder']
+            placeholder = p.get('placeholder')
 
             if p['from'] == 'submitter':
                 tunable_params += '\tname: %s\n' % param_name
@@ -495,22 +497,22 @@ class JobType(_MozartBase):
         submitter_params = filter(lambda x: x['from'] == 'submitter', self.hysds_ios['params'])
         for p in submitter_params:
             param_name = p['name']
-            default_value = p.get('default_value', None)
+            default_value = p.get('default', None)
             placeholder = p.get('placeholder', None)
 
             if placeholder:
-                print('%s: %s' % (param_name, placeholder))
+                print('NAME: %s (%s)' % (param_name, placeholder))
             else:
-                print(param_name)
+                print('NAME: %s' % param_name)
 
             if p['type'] == 'enum':
-                options = p['enumerables']
+                options = json.dumps(p['enumerables'])
                 if default_value is not None:
-                    param_value = input('Set value\n options: %s\n skip to use default: %s' % (options, default_value))
+                    param_value = input('Set value, options: %s\nSkip to use default (%s): ' % (options, default_value))
                     if not param_value:
                         param_value = default_value
                 else:
-                    param_value = input('Set value for \n options: %s' % options)
+                    param_value = input('Set value: options: %s: ' % options)
             else:
                 if default_value is not None:
                     param_value = input('Set value, skip to use default (%s): ' % default_value)
@@ -555,20 +557,41 @@ class JobType(_MozartBase):
     def get_submitter_params(self):
         return self.params['submitter_params']
 
-    def submit(self, params=None, tag=None, priority=1):
+    def submit(self, queue=None, tag=None, priority=1):
         """
         :param tag:
-        :param priority:
+        :param priority: int, job priority [1-9] in RabbitMQ
+        :param queue:
         :return: Job class object with _id
         """
-        if params is None:
-            params = {
-                **self.params['dataset_params'],
-                **self.params['hardwired_params'],
-                **self.params['submitter_params']
-            }
-        print(params)
-        input("does these params look good? Y/N")
+        if queue is None:
+            raise Exception("queue must be supplied")
+        if tag is None:
+            tag = self.__generate_tags('submit_job')
+
+        params = {
+            **self.params['dataset_params'],
+            **self.params['hardwired_params'],
+            **self.params['submitter_params']
+        }
+        job_split = self.job_spec.split(':')
+        job_payload = {
+            'queue': queue,
+            'priority': priority,
+            'job_name': job_split[0],
+            'tags': '["%s"]' % tag,
+            'type': self.job_spec,
+            'params': json.dumps(params),
+            'enable_dedup': False
+        }
+        host = self._cfg['host']
+        endpoint = os.path.join(host, 'mozart/api/v0.1/job/submit')
+        req = requests.post(endpoint, data=job_payload, verify=False)
+        if req.status_code != 200:
+            raise Exception(req.text)
+        res = req.json()
+        job_id = res['result']
+        return Job(job_id=job_id, cfg=self._cfg_file)
 
 
 class Job(_MozartBase):
