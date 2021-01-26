@@ -203,6 +203,27 @@ class Mozart(_MozartBase):
             jobs[job_spec] = JobType(hysds_io=hysds_io, job_spec=job_spec, label=label)
         return jobs
 
+    def get_job_type(self, job):
+        """
+        retrieve single PGE job
+        :return: JobType
+        """
+        host = self._cfg['host']
+        endpoint = os.path.join(host, 'grq/api/v0.1/grq/on-demand')
+
+        payload = {'id': job}
+        req = requests.get(endpoint, params=payload, verify=False)
+        if req.status_code != 200:
+            raise Exception(req.text)
+        res = req.json()
+
+        job_type = res['result']
+        hysds_io = job_type['hysds_io']
+        job_spec = job_type['job_spec']
+        label = job_type.get('label')
+
+        return JobType(hysds_io=hysds_io, job_spec=job_spec, label=label)
+
     def get_queue(self, job_name):
         """
         retrieve queue list and recommended queue
@@ -364,7 +385,9 @@ class JobType(_MozartBase):
 
         self.hysds_ios = {}
         self.job_specs = {}
+
         self.queues = {}
+        self.default_queue = None
 
         self.params = {
             'dataset_params': {},
@@ -372,11 +395,15 @@ class JobType(_MozartBase):
             'submitter_params': {}
         }
 
-    # def __str__(self):
-    #     """
-    #     Proper formatted job
-    #     :return: str
-    #     """
+    def __str__(self):
+        """
+        Proper formatted job
+        :return: str
+        """
+        if self.label:
+            return 'HySDS Job: %s (%s)' % (self.label, self.job_spec)
+        else:
+            return 'HySDS Job: %s' % self.job_spec
 
     def get_queues(self):
         """
@@ -394,8 +421,12 @@ class JobType(_MozartBase):
         if req.status_code != 200:
             raise Exception(req.text)
         res = req.json()
+
         queues = res['result']
         self.queues = queues
+        if len(queues.get('recommended', [])) > 0:
+            self.default_queue = queues['recommended'][0]
+
         return queues
 
     def initialize(self):
@@ -465,6 +496,9 @@ class JobType(_MozartBase):
           ---
           name: dataset_type
         """
+        if not self.hysds_ios:
+            raise Exception("Job specifications is empty, please initialize the JobType with .initialize()")
+
         output = 'Job Type: %s\n' % self.hysds_ios['job-specification']
         if self.hysds_ios.get('label'):
             output += 'Label: %s\n' % self.hysds_ios['label']
@@ -494,6 +528,9 @@ class JobType(_MozartBase):
         """
         prompting user for submitter inputs
         """
+        if not self.hysds_ios:
+            raise Exception("Job specifications is empty, please initialize the JobType with .initialize()")
+
         submitter_params = filter(lambda x: x['from'] == 'submitter', self.hysds_ios['params'])
         for p in submitter_params:
             param_name = p['name']
@@ -520,6 +557,7 @@ class JobType(_MozartBase):
                         param_value = default_value
                 else:
                     param_value = input('Set value: ')
+            print('')
             self.params['submitter_params'][param_name] = param_value
 
     def set_dataset_params(self, dataset=None):
@@ -529,6 +567,8 @@ class JobType(_MozartBase):
         """
         if dataset is None:
             raise Exception("dataset must be set for your job")
+        if not self.hysds_ios:
+            raise Exception("Job specifications is empty, please initialize the JobType with .initialize()")
 
         dataset_params = filter(lambda x: x['from'].startswith('dataset_jpath'), self.hysds_ios['params'])
         for p in dataset_params:
@@ -557,14 +597,14 @@ class JobType(_MozartBase):
     def get_submitter_params(self):
         return self.params['submitter_params']
 
-    def submit(self, queue=None, tag=None, priority=1):
+    def submit_job(self, queue=None, tag=None, priority=1):
         """
         :param tag:
         :param priority: int, job priority [1-9] in RabbitMQ
         :param queue:
         :return: Job class object with _id
         """
-        if queue is None:
+        if queue is None and self.default_queue is None:
             raise Exception("queue must be supplied")
         if tag is None:
             tag = self.__generate_tags('submit_job')
