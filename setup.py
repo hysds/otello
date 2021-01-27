@@ -15,6 +15,7 @@ setup(
     install_requires=[
         'click',
         'pyyaml',
+        'urllib3',
         'requests',
     ]
 )
