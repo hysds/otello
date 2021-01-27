@@ -319,30 +319,6 @@ class JobType(_MozartBase):
         else:
             return 'HySDS Job: %s' % self.job_spec
 
-    def get_queues(self):
-        """
-        retrieve and save the queue list and recommended queue(s)
-        :return: {
-            "queues": [...],
-            "recommended": [...]
-        }
-        """
-        host = self._cfg['host']
-        endpoint = os.path.join(host, 'mozart/api/v0.1/queue/list')
-
-        payload = {'id': self.job_spec}
-        req = requests.get(endpoint, params=payload, verify=False)
-        if req.status_code != 200:
-            raise Exception(req.text)
-        res = req.json()
-
-        queues = res['result']
-        self.queues = queues
-        if len(queues.get('recommended', [])) > 0:
-            self.default_queue = queues['recommended'][0]
-
-        return queues
-
     def initialize(self):
         """
         makes necessary backend API calls to get the HySDS-io params
@@ -369,6 +345,30 @@ class JobType(_MozartBase):
             if p['from'] == 'submitter':
                 default_value = p.get('default', None)  # submitter params
                 self._params['input_params'][param_name] = default_value
+
+    def get_queues(self):
+        """
+        retrieve and save the queue list and recommended queue(s)
+        :return: {
+            "queues": [...],
+            "recommended": [...]
+        }
+        """
+        host = self._cfg['host']
+        endpoint = os.path.join(host, 'mozart/api/v0.1/queue/list')
+
+        payload = {'id': self.job_spec}
+        req = requests.get(endpoint, params=payload, verify=False)
+        if req.status_code != 200:
+            raise Exception(req.text)
+        res = req.json()
+
+        queues = res['result']
+        self.queues = queues
+        if len(queues.get('recommended', [])) > 0:
+            self.default_queue = queues['recommended'][0]
+
+        return queues
 
     def describe(self):
         """
@@ -437,8 +437,6 @@ class JobType(_MozartBase):
         """
         prompting user for submitter inputs
         """
-        # TODO; build parameters in a dictionary and call set_input_params (which will validate and set)
-
         if not self.hysds_ios:
             raise Exception("Job specifications is empty, please initialize the JobType with .initialize()")
 
