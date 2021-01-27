@@ -8,7 +8,7 @@ from otello.base import Base
 
 
 class _MozartBase(Base):
-    purge_job_name = 'job-lw-mozart-purge'
+    PURGE_JOB_NAME = 'job-lw-mozart-purge'
 
     def __init__(self, cfg=None):
         super().__init__(cfg=cfg)
@@ -26,9 +26,7 @@ class _MozartBase(Base):
         """
         host = self._cfg['host']
         endpoint = os.path.join(host, 'mozart/api/v0.1/job/status')
-        payload = {
-            'id': _id
-        }
+        payload = {'id': _id}
         req = requests.get(endpoint, params=payload, verify=False)
         if req.status_code != 200:
             raise Exception(req.text)
@@ -44,9 +42,7 @@ class _MozartBase(Base):
         host = self._cfg['host']
         endpoint = os.path.join(host, 'mozart/api/v0.1/job/info')
 
-        payload = {
-            'id': _id
-        }
+        payload = {'id': _id}
         req = requests.get(endpoint, params=payload, verify=False)
         if req.status_code != 200:
             raise Exception(req.text)
@@ -101,9 +97,9 @@ class _MozartBase(Base):
         job_payload = {
             'queue': 'system-jobs-queue',
             'priority': priority,
-            'job_name': self.purge_job_name,
+            'job_name': _MozartBase.PURGE_JOB_NAME,
             'tags': '["%s"]' % tags,
-            'type': '%s:%s' % (self.purge_job_name, version),
+            'type': '%s:%s' % (_MozartBase.PURGE_JOB_NAME, version),
             'params': json.dumps(params),
             'enable_dedup': False
         }
@@ -152,9 +148,9 @@ class _MozartBase(Base):
         job_payload = {
             'queue': 'system-jobs-queue',
             'priority': priority,
-            'job_name': self.purge_job_name,
+            'job_name': _MozartBase.PURGE_JOB_NAME,
             'tags': '["%s"]' % tags,
-            'type': '%s:%s' % (self.purge_job_name, version),
+            'type': '%s:%s' % (_MozartBase.PURGE_JOB_NAME, version),
             'params': json.dumps(params),
             'enable_dedup': False
         }
@@ -168,16 +164,6 @@ class _MozartBase(Base):
         job_id = res['result']
         print("purge job submitted, id: %s" % job_id)
         return Job(job_id=job_id, cfg=self._cfg_file)
-
-    # def _retry_job(self, job_id):
-    #     """
-    #     retry job
-    #     :param job_id: str, ElasticSearch job document ID
-    #     :return:
-    #     """
-    #     current_job_status = self._get_job_status(job_id)
-    #     if current_job_status in ('job-queued', 'job-started'):
-    #         raise Exception("job (%s) is currently in %s state, cannot retry" % (job_id, current_job_status))
 
 
 class Mozart(_MozartBase):
@@ -256,76 +242,6 @@ class Mozart(_MozartBase):
         res = req.json()
         return res['params']
 
-    def submit_job(self, job_name=None, queue=None, tags=None, priority=0, params=None):
-        """
-        Submit mozart job:
-
-        params = {...}  # kwargs for job
-        job_payload = {
-            'queue': queue,
-            'priority': '3',
-            'job_name': job_type,
-            'tags': '["{}_{}"]'.format(tag_name, slc_id),
-            'type': "{}:{}".format(job_type, job_release),
-            'params': json.dumps(params),
-            'enable_dedup': False
-        }
-        :param job_name: str; HySDS job_name + job release (ie. job-lw-tosca-purge:v1.0.5)
-        :param queue: str; job queue
-        :param tags: (optional) str; what to tag your job (default to something if not supplied)
-        :param priority: (optional) int; between 0-9
-        :param params: (optional) dict; job parameters: will grab default params if not supplied
-        ex:
-            {
-                "entity_id": "LC80101172015002LGN00",
-                "min_lat": -79.09923,
-                "max_lon": -125.09297,
-                "id": "dumby-product-20161114180506209624",
-                "acq_time": "2015-01-02T15:49:05.571384",
-                "min_sleep": 1,
-                "max_lat": -77.7544,
-                "min_lon": -139.66082,
-                "max_sleep": 10
-            }
-        :return: Job class instance
-        """
-        # TODO: need to check if /job/submit iterates through the results returned by the query
-        if job_name is None and queue is None:
-            raise Exception("")
-        if tags is None:
-            tags = self.__generate_tags('submit_job')
-
-        if params is None:
-            params = {}
-            default_params = self.get_job_params(job_name)
-            for p in default_params:
-                param_name = p['name']
-                default_param_val = p.get('default', None)
-                if default_param_val:
-                    params[param_name] = default_param_val
-                    continue
-                if not p.get('optional', False) and default_param_val is None:
-                    raise Exception('%s is not optional and default value not given' % param_name)
-
-        job_split = job_name.split('/')
-        job_payload = {
-            'queue': queue,
-            'priority': priority,
-            'job_name': job_split[0],
-            'tags': '["%s"]' % tags,
-            'type': job_name,
-            'params': json.dumps(params),
-            'enable_dedup': False
-        }
-        host = self._cfg['host']
-        endpoint = os.path.join(host, 'mozart/api/v0.1/job/submit')
-        req = requests.post(endpoint, data=job_payload, verify=False)
-        if req.status_code != 200:
-            raise Exception(req.text)
-        res = req.json()
-        job_id = res['result']
-        return Job(job_id=job_id, cfg=self._cfg_file)
-
     def get_job_info(self, _id):
         """
         Retrieve entire job payload (ES document)
@@ -384,15 +300,13 @@ class JobType(_MozartBase):
         self.label = label
 
         self.hysds_ios = {}
-        self.job_specs = {}
-
         self.queues = {}
         self.default_queue = None
 
         self._params = {
             'dataset_params': {},
             'hardwired_params': {},
-            'submitter_params': {}
+            'input_params': {}
         }
 
     def __str__(self):
@@ -431,17 +345,11 @@ class JobType(_MozartBase):
 
     def initialize(self):
         """
-        makes necessary backend API calls to get the HySDS-io params, TODO: maybe sets other things also
+        makes necessary backend API calls to get the HySDS-io params
         :return:
         """
         host = self._cfg['host']
         endpoint = os.path.join(host, 'grq/api/v0.1/hysds_io/type')
-
-        # TODO: params separated into 3 types (from): dataset_jpath, value, submitter
-        #       "dataset_jpath": probably check if "from" starts with dataset_jpath (ex. dataset_jpath:_source.dataset)
-        #                        will map to "dataset_params" (need more information)
-        #       "value": map to "hardwired_params" (DONE)
-        #       "submitter": map to "submitter_params" (DONE)
 
         payload = {'id': self.hysds_io}
         req = requests.get(endpoint, params=payload, verify=False)
@@ -460,7 +368,7 @@ class JobType(_MozartBase):
 
             if p['from'] == 'submitter':
                 default_value = p.get('default', None)  # submitter params
-                self._params['submitter_params'][param_name] = default_value
+                self._params['input_params'][param_name] = default_value
 
     def describe(self):
         """
@@ -471,30 +379,11 @@ class JobType(_MozartBase):
           name: processing_type
           desc: Processing type: forward | reprocessing | urgent. Default: forward
           choices: forward, reprocessing, urgent
-          ---
-          name: fullcovariance
-          desc: Compute cross-elements (True) or diagonals only (False). Default: False
-          choices: False, True
-          ---
-          name: output_type
-          desc: "Choices: 'None' (to turn off RTC) or 'gamma0'
-          choices: None, gamma0
-          ---
-          name: algorithm_type
-          desc: Choices: 'area-projection' (default) and 'David-Small'
-          choices: area-projection, David-Small
-          ---
-          name: output_posting
-          desc: Output posting in same units as output EPSG. Single value or list indicating the output posting for each
-                frequency. Default '[20, 100]'
+          ...
+
         Dataset parameters:
           name: product_paths
-          ---
-          name: product_metadata
-          ---
-          name: input_dataset_id
-          ---
-          name: dataset_type
+          ...
         """
         if not self.hysds_ios:
             raise Exception("Job specifications is empty, please initialize the JobType with .initialize()")
@@ -524,15 +413,34 @@ class JobType(_MozartBase):
                 dataset_params += '\n'
         print(output + '\n' + tunable_params + '\n' + dataset_params)
 
-    def set_input_params(self):
+    def set_input_params(self, params):
+        """
+        setting the user input parameters for the job
+        :param params: dict[str, any]
+        """
+        if type(params) != dict:
+            raise Exception("params must be dictionary")
+
+        constructed_params = {}
+        for k, v in params.items():
+            if k not in self._params['input_params']:
+                raise Exception("%s not an input parameter" % k)
+            constructed_params[k] = v
+        self._params['input_params'] = constructed_params
+
+    def prompt_input_params(self):
         """
         prompting user for submitter inputs
         """
+        # TODO; build parameters in a dictionary and call set_input_params (which will validate and set)
+
         if not self.hysds_ios:
             raise Exception("Job specifications is empty, please initialize the JobType with .initialize()")
 
-        submitter_params = filter(lambda x: x['from'] == 'submitter', self.hysds_ios['params'])
-        for p in submitter_params:
+        constructed_params = {}
+        input_params = filter(lambda x: x['from'] == 'submitter', self.hysds_ios['params'])
+
+        for p in input_params:
             param_name = p['name']
             default_value = p.get('default', None)
             placeholder = p.get('placeholder', None)
@@ -558,7 +466,8 @@ class JobType(_MozartBase):
                 else:
                     param_value = input('Set value: ')
             print('')
-            self._params['submitter_params'][param_name] = param_value
+            constructed_params[param_name] = param_value
+        self.set_input_params(constructed_params)
 
     def set_input_dataset(self, dataset=None):
         """
@@ -595,11 +504,20 @@ class JobType(_MozartBase):
         return self._params['dataset_params']
 
     def get_input_params(self):
-        return self._params['submitter_params']
+        return self._params['input_params']
 
     def submit_job(self, queue=None, tag=None, priority=1):
         """
-        :param tag:
+        job_payload = {
+            'queue': queue,
+            'priority': '3',
+            'job_name': job_type,
+            'tags': '["{}_{}"]'.format(tag_name, slc_id),
+            'type': "{}:{}".format(job_type, job_release),
+            'params': json.dumps(params),
+            'enable_dedup': False
+        }
+        :param tag: str, job tag to track
         :param priority: int, job priority [1-9] in RabbitMQ
         :param queue:
         :return: Job class object with _id
@@ -612,7 +530,7 @@ class JobType(_MozartBase):
         params = {
             **self._params['dataset_params'],
             **self._params['hardwired_params'],
-            **self._params['submitter_params']
+            **self._params['input_params']
         }
         job_split = self.job_spec.split(':')
         job_payload = {
@@ -688,10 +606,8 @@ class Job(_MozartBase):
         while True:
             try:
                 status = self.get_status()
-                print(f"{status} {datetime.utcnow().isoformat('T')}")
-                if status not in ('job-failed', 'job-deduped', 'job-completed', 'job-offline'):
-                    print('%s job status: %s' % (self.job_id, status))
-                else:
+                print(f"{self.job_id}: {status} {datetime.utcnow().isoformat('T')}")
+                if status in ('job-failed', 'job-deduped', 'job-completed', 'job-offline'):
                     return status
             except Exception as e:
                 print(e)
@@ -706,11 +622,40 @@ class JobSet(_MozartBase):
         """
         if job_set is None:
             raise Exception("job_set must be supplied, ex. [<Job class object>, <Job class object>, ...]")
+        if type(job_set) != list:
+            raise Exception("job_set must be a List[<Job class>]")
+
         super().__init__(cfg=cfg)
+
+        for job in job_set:
+            if job.__class__ != Job:
+                raise Exception("all entries in job_set must bbe of type <Job>")
         self.job_set = job_set
 
-    def get_statuses(self):
-        pass
+    def append(self, job):
+        """
+        add submitted HySDS job to stored list of jobs
+        :param job: Job object to be appended
+        """
+        if job.__class__ != Job:
+            raise Exception("appended job must be of type <Job>")
+        self.job_set.append(job)
 
-    # def wait_for_completion(self):
-    #     pass
+    def wait_for_completion(self):
+        """
+        will loop (with 30 second delay) until through all jobs and break if all jobs are completed (or failed)
+        :return: str: job status when job completed (or fails)
+        """
+        while True:
+            completed_jobs = 0
+            for job in self.job_set:
+                try:
+                    status = job.get_status()
+                    print(f"{job.job_id}: {status} {datetime.utcnow().isoformat('T')}")
+                    if status in ('job-failed', 'job-deduped', 'job-completed', 'job-offline'):
+                        completed_jobs += 1
+                except Exception as e:
+                    print(e)
+            if completed_jobs == len(self.job_set):
+                return
+            time.sleep(30)

@@ -2,6 +2,11 @@
 
 
 ## Installation
+
+**NOTE:**
+Requires python 3.5+
+
+
 ```bash
 $ cd otello/
 $ pip install -e .
@@ -144,7 +149,7 @@ ex.
                       'module_path': '/home/####/verdi/####/####-pcm',
                       'purpose': 'L0A',
                       'wf_dir': '/home/####/verdi/####/####-pcm/####_chimera/wf_xml'},
- 'submitter_params': {'algorithm_type': 'area-projection',
+ 'input_params': {'algorithm_type': 'area-projection',
                       'fullcovariance': 'False',
                       'output_posting': '[20, 100]',
                       'output_type': 'gamma0',
@@ -165,6 +170,37 @@ submitting a job will return a HySDS job instance, wrapped in the `Job` class
 | `remove` | submits a HySDS job to remove/delete the specified job | | `Job` object |
 | `get_generated_products` | receives metadata of published products generated from the submitted job | | `Dict[str;Dict]`
 | `wait_for_completion` | blocking function to wait for job completion (success;failure) | | `str` |
+
+
+
+### Submitting multiple jobs
+`otello` provides a dedicated class (`JobSet`) to handle multiple job submissions
+* the `JobSet` class takes in a `List` of `Job` class objects in its constructor
+
+`JobSet` object methods:
+
+| method | desc |
+| ------ | ---- |
+| `append` | append `Job` object to it's current set of jobs |
+| `wait_for_completion` | blocking function to loop through the set of `Job`s, will finish once all jobs are completed/failed |
+
+```python
+import otello
+
+m = otello.Mozart()
+jt = m.get_job_type("job-SCIFLO_GCOV:develop")
+jt.initialize()
+# ...
+# additional steps to build job parameters
+
+job_set = otello.JobSet()  # creating JobSet to track multiple submitted jobs
+for i in range(5):
+    # submitting 5 jobs to a JobSet
+    j = jt.submit_job(...)
+    job_set.append(j)
+
+job_set.wait_for_completion()  # waiting for all 5 jobs to finish
+```
 
 
 ## Code Structure
@@ -191,3 +227,11 @@ submitting a job will return a HySDS job instance, wrapped in the `Job` class
 |     +--- (not implemented yet)
 |     +--- leverage pele?
 ```
+
+
+---
+**NOTE**
+
+Any bugs or suggestions can be reported in a GitHub issue
+
+---
