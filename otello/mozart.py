@@ -401,11 +401,14 @@ class JobType(_MozartBase):
             placeholder = p.get('placeholder')
 
             if p['from'] == 'submitter':
+                default_value = p.get('default')
                 tunable_params += '\tname: %s\n' % param_name
                 if placeholder:
                     tunable_params += '\tdesc: %s\n' % placeholder
                 if p['type'] == 'enum':
                     tunable_params += '\tchoices: %s\n' % p['enumerables']
+                if default_value is not None:
+                    tunable_params += '\tdefault: %s\n' % default_value
                 tunable_params += '\n'
 
             if p['from'].startswith('dataset_jpath'):
