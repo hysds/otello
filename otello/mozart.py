@@ -421,12 +421,17 @@ class JobType(_MozartBase):
         if type(params) != dict:
             raise Exception("params must be dictionary")
 
+        current_params = self._params['input_params']
         constructed_params = {}
+
         for k, v in params.items():
             if k not in self._params['input_params']:
                 raise Exception("%s not an input parameter" % k)
             constructed_params[k] = v
-        self._params['input_params'] = constructed_params
+        self._params['input_params'] = {
+            **current_params,
+            **constructed_params
+        }
 
     def prompt_input_params(self):
         """
@@ -620,17 +625,18 @@ class JobSet(_MozartBase):
         List of Job class objects to track multiple job submissions
         :param job_set: list[Job], list of Job(s)
         """
-        if job_set is None:
-            raise Exception("job_set must be supplied, ex. [<Job class object>, <Job class object>, ...]")
-        if type(job_set) != list:
-            raise Exception("job_set must be a List[<Job class>]")
-
         super().__init__(cfg=cfg)
 
-        for job in job_set:
-            if job.__class__ != Job:
-                raise Exception("all entries in job_set must bbe of type <Job>")
-        self.job_set = job_set
+        if job_set is None:
+            self.job_set = []
+        else:
+            if type(job_set) != list:
+                raise Exception("job_set must be a List[<Job class>]")
+
+            for job in job_set:
+                if job.__class__ != Job:
+                    raise Exception("all entries in job_set must bbe of type <Job>")
+            self.job_set = job_set
 
     def append(self, job):
         """
