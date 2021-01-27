@@ -86,10 +86,10 @@ m = Mozart()
 | `initialize` | (run this first) retrieve and set the job input parameters and wiring as class attributes | | |
 | `get_queues` | retrieve the list of available and recommended queues | | |
 | `describe` | prints the basic description and wiring of the Job | | |
-| `set_submitter_params` | prompts the user to set/tune the job parameters manually | | |
-| `set_dataset_params` | sets the dataset parameters | `dataset <Dict>` | |
-| `get_submitter_params` | returns the user defined parameters | | `Dict[str, str]` |
-| `get_dataset_params` | returns the dataset parameters | | `Dict[str, str]` |
+| `set_input_params` | prompts the user to set/tune the job parameters manually | | |
+| `set_input_dataset` | sets the dataset parameters | `dataset <Dict>` | |
+| `get_input_params` | returns the user defined parameters | | `Dict[str, str]` |
+| `get_input_dataset` | returns the dataset parameters | | `Dict[str, str]` |
 | `submit_job` | submits the Job to HySDS with the tuned parameters | `queue<str:optional>`, `priority<int>`, `tag<str>` | `Job` object
 
 basic flow of `otello`'s job management:
@@ -131,8 +131,8 @@ Dataset Parameters:
 	...
 """
 
-jt.set_dataset_params(dataset)  # dataset returned from the Pele Rest API
-jt.set_submitter_params()
+jt.set_input_dataset(dataset)  # dataset returned from the Pele Rest API
+jt.set_input_params()
 
 print(jt.params)
 """

@@ -389,7 +389,7 @@ class JobType(_MozartBase):
         self.queues = {}
         self.default_queue = None
 
-        self.params = {
+        self._params = {
             'dataset_params': {},
             'hardwired_params': {},
             'submitter_params': {}
@@ -456,11 +456,11 @@ class JobType(_MozartBase):
             param_name = p['name']
 
             if p['from'] == 'value':  # hardwired params
-                self.params['hardwired_params'][param_name] = p['value']
+                self._params['hardwired_params'][param_name] = p['value']
 
             if p['from'] == 'submitter':
                 default_value = p.get('default', None)  # submitter params
-                self.params['submitter_params'][param_name] = default_value
+                self._params['submitter_params'][param_name] = default_value
 
     def describe(self):
         """
@@ -524,7 +524,7 @@ class JobType(_MozartBase):
                 dataset_params += '\n'
         print(output + '\n' + tunable_params + '\n' + dataset_params)
 
-    def set_submitter_params(self):
+    def set_input_params(self):
         """
         prompting user for submitter inputs
         """
@@ -558,9 +558,9 @@ class JobType(_MozartBase):
                 else:
                     param_value = input('Set value: ')
             print('')
-            self.params['submitter_params'][param_name] = param_value
+            self._params['submitter_params'][param_name] = param_value
 
-    def set_dataset_params(self, dataset=None):
+    def set_input_dataset(self, dataset=None):
         """
         dataset taken from Pele and sets it to the dataset params in hysds-ios
         :param dataset: dict[str, str|dict|list]
@@ -575,27 +575,27 @@ class JobType(_MozartBase):
             param_name = p['name']
             if 'lambda' in p:
                 f = eval(p['lambda'])
-                self.params['dataset_params'][param_name] = f(dataset)
+                self._params['dataset_params'][param_name] = f(dataset)
             else:
                 parsed_path = p['from'].replace('dataset_jpath:', '').replace('_source.', '')
                 if parsed_path == '_id':
                     # case 1: if _id, get id instead from pele results
-                    self.params['dataset_params'][param_name] = dataset['id']
+                    self._params['dataset_params'][param_name] = dataset['id']
                 else:
                     # case 2: remove dataset_jpath:_source, get list of paths and traverse
                     parsed_path = parsed_path.split('.')
                     for path in parsed_path:
                         dataset = dataset[path]
-                    self.params['dataset_params'][param_name] = dataset
+                    self._params['dataset_params'][param_name] = dataset
 
     def get_hardwire_params(self):
-        return self.params['hardwired_params']
+        return self._params['hardwired_params']
 
-    def get_dataset_params(self):
-        return self.params['dataset_params']
+    def get_input_dataset(self):
+        return self._params['dataset_params']
 
-    def get_submitter_params(self):
-        return self.params['submitter_params']
+    def get_input_params(self):
+        return self._params['submitter_params']
 
     def submit_job(self, queue=None, tag=None, priority=1):
         """
@@ -610,9 +610,9 @@ class JobType(_MozartBase):
             tag = self.__generate_tags('submit_job')
 
         params = {
-            **self.params['dataset_params'],
-            **self.params['hardwired_params'],
-            **self.params['submitter_params']
+            **self._params['dataset_params'],
+            **self._params['hardwired_params'],
+            **self._params['submitter_params']
         }
         job_split = self.job_spec.split(':')
         job_payload = {
