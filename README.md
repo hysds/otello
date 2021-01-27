@@ -15,7 +15,7 @@ You can intialize it 1 of 2 ways
 * using the CLI tool
     * `$ otello init`
 * importing the `otello` library
-    * `import otello` and `otello.intialize()`
+    * `import otello` and `otello.initialize()`
 
 It will prompt the user to enter the HySDS host and parameters for authentication (will be implemented in the future)
 ```bash
@@ -164,6 +164,7 @@ submitting a job will return a HySDS job instance, wrapped in the `Job` class
 | `revoke` | submits a HySDS job to stop the specified job | | `Job` object |
 | `remove` | submits a HySDS job to remove/delete the specified job | | `Job` object |
 | `get_generated_products` | receives metadata of published products generated from the submitted job | | `Dict[str;Dict]`
+| `wait_for_completion` | blocking function to wait for job completion (success;failure) | | `str` |
 
 
 ## Code Structure
