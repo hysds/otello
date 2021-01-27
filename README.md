@@ -165,11 +165,11 @@ submitting a job will return a HySDS job instance, wrapped in the `Job` class
 | method | desc | input | return |
 | ------ | ---- | ----- | ------ |
 | `get_status` | get the current submitted job status | | `str` `job-[queued,started,failed,completed]` |
-| `get_info` | returns job metadata stored in ElasticSearch | | `Dict[str, str;Dict]` |
+| `get_info` | returns job metadata stored in ElasticSearch | | `Dict[str, str or Dict]` |
 | `revoke` | submits a HySDS job to stop the specified job | | `Job` object |
 | `remove` | submits a HySDS job to remove/delete the specified job | | `Job` object |
-| `get_generated_products` | receives metadata of published products generated from the submitted job | | `Dict[str;Dict]`
-| `wait_for_completion` | blocking function to wait for job completion (success;failure) | | `str` |
+| `wait_for_completion` | blocking function to wait for job completion (success or failure) | | `str` |
+| `get_generated_products` | receives metadata of published products generated from the submitted job | | `Dict[str or Dict]`
 
 
 
