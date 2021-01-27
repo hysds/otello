@@ -636,6 +636,15 @@ class JobSet(_MozartBase):
                     raise Exception("all entries in job_set must bbe of type <Job>")
             self.job_set = job_set
 
+    def __len__(self):
+        return len(self.job_set)
+
+    def __iter__(self):
+        return (job for job in self.job_set)
+
+    def __getitem__(self, i):
+        return self.job_set[i]
+
     def append(self, job):
         """
         add submitted HySDS job to stored list of jobs
