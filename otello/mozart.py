@@ -635,11 +635,11 @@ class JobSet(_MozartBase):
             self.job_set = []
         else:
             if type(job_set) != list:
-                raise Exception("job_set must be a List[<Job class>]")
+                raise TypeError("job_set must be a List[<Job>]")
 
             for job in job_set:
                 if job.__class__ != Job:
-                    raise Exception("all entries in job_set must bbe of type <Job>")
+                    raise TypeError("all entries in job_set must bbe of type <Job>")
             self.job_set = job_set
 
     def __len__(self):
@@ -657,7 +657,7 @@ class JobSet(_MozartBase):
         :param job: Job object to be appended
         """
         if job.__class__ != Job:
-            raise Exception("appended job must be of type <Job>")
+            raise TypeError("appended job must be of type <Job>")
         self.job_set.append(job)
 
     def wait_for_completion(self):
