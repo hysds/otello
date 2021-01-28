@@ -324,11 +324,12 @@ class JobType(_MozartBase):
         makes necessary backend API calls to get the HySDS-io params
         :return:
         """
+        # retrieve the HySDS io's
         host = self._cfg['host']
-        endpoint = os.path.join(host, 'grq/api/v0.1/hysds_io/type')
+        job_endpoint = os.path.join(host, 'grq/api/v0.1/hysds_io/type')
 
         payload = {'id': self.hysds_io}
-        req = requests.get(endpoint, params=payload, verify=False)
+        req = requests.get(job_endpoint, params=payload, verify=False)
         if req.status_code != 200:
             raise Exception(req.text)
         res = req.json()
@@ -346,19 +347,10 @@ class JobType(_MozartBase):
                 default_value = p.get('default', None)  # submitter params
                 self._params['input_params'][param_name] = default_value
 
-    def get_queues(self):
-        """
-        retrieve and save the queue list and recommended queue(s)
-        :return: {
-            "queues": [...],
-            "recommended": [...]
-        }
-        """
-        host = self._cfg['host']
-        endpoint = os.path.join(host, 'mozart/api/v0.1/queue/list')
-
+        # retrieve the queues
+        queue_endpoint = os.path.join(host, 'mozart/api/v0.1/queue/list')
         payload = {'id': self.job_spec}
-        req = requests.get(endpoint, params=payload, verify=False)
+        req = requests.get(queue_endpoint, params=payload, verify=False)
         if req.status_code != 200:
             raise Exception(req.text)
         res = req.json()
@@ -368,7 +360,18 @@ class JobType(_MozartBase):
         if len(queues.get('recommended', [])) > 0:
             self.default_queue = queues['recommended'][0]
 
-        return queues
+    def get_queues(self):
+        """
+        returned the queue and default queue saved in class
+        :return: Dict[str, str|List]
+        """
+        if len(self.queues) == {}:
+            raise Exception("Please initialize the JobType object with .initialize()")
+
+        return {
+            'queues': self.queues,
+            'default': self.default_queue
+        }
 
     def describe(self):
         """
