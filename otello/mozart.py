@@ -347,7 +347,11 @@ class JobType(_MozartBase):
             if p['from'] == 'submitter':
                 default_value = p.get('default', None)  # submitter params
                 if p['type'] == 'number':
-                    default_value = ast.literal_eval(default_value)
+                    if default_value is not None:
+                        default_value = ast.literal_eval(default_value)
+                if p['type'] == 'boolean':
+                    if default_value is not None:
+                        default_value = True if default_value.lower() == 'true' else False
                 self._params['input_params'][param_name] = default_value
 
         # retrieve the queues
@@ -390,6 +394,7 @@ class JobType(_MozartBase):
         Dataset parameters:
           name: product_paths
           ...
+        :return:
         """
         if not self.hysds_ios:
             raise Exception("Job specifications is empty, please initialize the JobType with .initialize()")
@@ -404,17 +409,22 @@ class JobType(_MozartBase):
 
         for p in self.hysds_ios['params']:
             param_name = p['name']
+            param_type = p['type']
             placeholder = p.get('placeholder')
 
             if p['from'] == 'submitter':
                 default_value = p.get('default')
+                optional = p.get('optional', False)
                 tunable_params += '\tname: %s\n' % param_name
+                tunable_params += '\ttype: %s\n' % param_type
                 if placeholder:
                     tunable_params += '\tdesc: %s\n' % placeholder
                 if p['type'] == 'enum':
                     tunable_params += '\tchoices: %s\n' % p['enumerables']
                 if default_value is not None:
                     tunable_params += '\tdefault: %s\n' % default_value
+                if optional is True:
+                    tunable_params += '\toptional: %s\n' % optional
                 tunable_params += '\n'
 
             if p['from'].startswith('dataset_jpath'):
@@ -434,52 +444,11 @@ class JobType(_MozartBase):
         constructed_params = {}
 
         for k, v in params.items():
-            if k not in self._params['input_params']:
-                raise Exception("%s not an input parameter" % k)
             constructed_params[k] = v
         self._params['input_params'] = {
             **current_params,
             **constructed_params
         }
-
-    def prompt_input_params(self):
-        """
-        prompting user for submitter inputs
-        """
-        if not self.hysds_ios:
-            raise Exception("Job specifications is empty, please initialize the JobType with .initialize()")
-
-        constructed_params = {}
-        input_params = filter(lambda x: x['from'] == 'submitter', self.hysds_ios['params'])
-
-        for p in input_params:
-            param_name = p['name']
-            default_value = p.get('default', None)
-            placeholder = p.get('placeholder', None)
-
-            if placeholder:
-                print('NAME: %s (%s)' % (param_name, placeholder))
-            else:
-                print('NAME: %s' % param_name)
-
-            if p['type'] == 'enum':
-                options = json.dumps(p['enumerables'])
-                if default_value is not None:
-                    param_value = input('Set value, options: %s\nSkip to use default (%s): ' % (options, default_value))
-                    if not param_value:
-                        param_value = default_value
-                else:
-                    param_value = input('Set value: options: %s: ' % options)
-            else:
-                if default_value is not None:
-                    param_value = input('Set value, skip to use default (%s): ' % default_value)
-                    if not param_value:
-                        param_value = default_value
-                else:
-                    param_value = input('Set value: ')
-            print('')
-            constructed_params[param_name] = param_value
-        self.set_input_params(constructed_params)
 
     def set_input_dataset(self, dataset=None):
         """
