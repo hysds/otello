@@ -168,6 +168,13 @@ class _MozartBase(Base):
 
 
 class Mozart(_MozartBase):
+    """
+    Driver class for Mozart for users to get a list of available jobs. etc
+
+    methods:
+        get_job_type: returns a singular JobType
+        get_job_types: retrieves a Dictionary of JobType(s) with the job_name
+    """
     def get_job_types(self):
         """
         retrieve list of PGE jobs
@@ -286,6 +293,19 @@ class Mozart(_MozartBase):
 
 
 class JobType(_MozartBase):
+    """
+    Mozart Job Type developers can use to submit to HySDS as jobs
+
+    methods:
+        initialize: grab the job wiring and queue(s) from the HySDS rest API
+        get_queues: retrieve and set the queue(s)
+        describe: print the Job Type description
+        set_input_params: set the tune-able parameters (dictionary as input)
+        get_input_params: retrieve the tune-able parameters
+        set_input_dataset: set a HySDS dataset (retrieved from Pele) into the job type to submit
+        get_input_dataset: retrieve the dataset parameters
+        submit_job: submit Job to HySDS, returns a Job class object
+    """
     def __init__(self, hysds_io=None, job_spec=None, label=None, cfg=None):
         """
         :param hysds_io: (str) hysds_ios ID
@@ -534,7 +554,21 @@ class JobType(_MozartBase):
 
 
 class Job(_MozartBase):
+    """
+    Job submitted to HySDS
+
+    methods:
+        get_status: get job status {job-queued, job-started, job-completed, job-failed, job-deduped, job-offline}
+        get_info: return Mozart's job payload
+        revoke: submit a mozart Job to revoke current job
+        remove: Remove Job record with Purge Job PGE
+        get_generated_products: Return products staged for failed/completed jobs
+        wait_for_completion: will loop (with 30 second delay) until the job compeltes (or fails)
+    """
     def __init__(self, job_id=None, cfg=None):
+        """
+        :param job_id: str, job UUID
+        """
         super().__init__(cfg=cfg)
         self.job_id = job_id
 
@@ -596,9 +630,16 @@ class Job(_MozartBase):
 
 
 class JobSet(_MozartBase):
+    """
+    List of Job class objects to track multiple job submissions
+    able to iterate through and check for multiple job completions
+
+    methods:
+        append: adding Job object to current set of jobs
+        wait_for_completion: wait for all "completion" of jobs
+    """
     def __init__(self, job_set=None, cfg=None):
         """
-        List of Job class objects to track multiple job submissions
         :param job_set: list[Job], list of Job(s)
         """
         super().__init__(cfg=cfg)
@@ -608,7 +649,6 @@ class JobSet(_MozartBase):
         else:
             if type(job_set) != list:
                 raise TypeError("job_set must be a List[<Job>]")
-
             for job in job_set:
                 if job.__class__ != Job:
                     raise TypeError("all entries in job_set must bbe of type <Job>")
@@ -647,6 +687,7 @@ class JobSet(_MozartBase):
                         completed_jobs += 1
                 except Exception as e:
                     print(e)
+                    completed_jobs += 1
             if completed_jobs == len(self.job_set):
                 return
             time.sleep(30)
