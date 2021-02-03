@@ -1,4 +1,5 @@
 import os
+import ast
 import json
 from datetime import datetime
 import time
@@ -345,6 +346,8 @@ class JobType(_MozartBase):
 
             if p['from'] == 'submitter':
                 default_value = p.get('default', None)  # submitter params
+                if p['type'] == 'number':
+                    default_value = ast.literal_eval(default_value)
                 self._params['input_params'][param_name] = default_value
 
         # retrieve the queues
