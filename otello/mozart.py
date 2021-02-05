@@ -501,7 +501,7 @@ class JobType(_MozartBase):
             placeholder = p.get('placeholder', None)
             optional = p.get('optional', False)
 
-            prompt = 'NAME: %s' % param_name
+            prompt = 'NAME: %s (%s)' % (param_name, param_type)
             if placeholder:
                 prompt += ' (%s)' % placeholder
             print(prompt)
@@ -523,6 +523,7 @@ class JobType(_MozartBase):
                     continue
                 elif optional is True:
                     constructed_params[param_name] = None
+                    continue
                 else:
                     raise ValueError("%s is required" % param_name)
 
