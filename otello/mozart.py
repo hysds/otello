@@ -427,10 +427,12 @@ class JobType(_MozartBase):
                 default_value = p.get('default', None)  # submitter params
                 if p['type'] == 'number':
                     if default_value is not None:
-                        default_value = ast.literal_eval(default_value)
+                        if type(default_value) == str:
+                            default_value = ast.literal_eval(default_value)
                 if p['type'] == 'boolean':
                     if default_value is not None:
-                        default_value = True if default_value.lower() == 'true' else False
+                        if type(default_value) != bool:
+                            default_value = True if default_value.lower() == 'true' else False
                 self._params['input_params'][param_name] = default_value
 
     def _retrieve_queues(self):
@@ -508,7 +510,7 @@ class JobType(_MozartBase):
             if param_type == 'enum':
                 options = p['enumerables']
                 input_prompt += '. options (%s)' % options
-            if param_type == 'boolean':
+            elif param_type == 'boolean':
                 input_prompt += ' (true/false)'
 
             if default is not None:
@@ -517,8 +519,7 @@ class JobType(_MozartBase):
 
             value = input(input_prompt)
             if not value:
-                if default is not None:  # if not get default
-                    constructed_params[param_name] = default
+                if default is not None:  # if value is not given, use the default already set
                     continue
                 elif optional is True:
                     constructed_params[param_name] = None
