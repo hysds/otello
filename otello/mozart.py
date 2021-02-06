@@ -345,60 +345,9 @@ class JobType(_MozartBase):
         makes necessary backend API calls to get the HySDS-io params
         :return:
         """
-        # retrieve the HySDS io's
-        host = self._cfg['host']
-        job_endpoint = os.path.join(host, 'grq/api/v0.1/hysds_io/type')
 
-        payload = {'id': self.hysds_io}
-        req = requests.get(job_endpoint, params=payload, verify=False)
-        if req.status_code != 200:
-            raise Exception(req.text)
-        res = req.json()
-
-        self.hysds_ios = res['result']  # saving the HySDS ios
-
-        params = res['result']['params']
-        for p in params:
-            param_name = p['name']
-
-            if p['from'] == 'value':  # hardwired params
-                self._params['hardwired_params'][param_name] = p['value']
-
-            if p['from'] == 'submitter':
-                default_value = p.get('default', None)  # submitter params
-                if p['type'] == 'number':
-                    if default_value is not None:
-                        default_value = ast.literal_eval(default_value)
-                if p['type'] == 'boolean':
-                    if default_value is not None:
-                        default_value = True if default_value.lower() == 'true' else False
-                self._params['input_params'][param_name] = default_value
-
-        # retrieve the queues
-        queue_endpoint = os.path.join(host, 'mozart/api/v0.1/queue/list')
-        payload = {'id': self.job_spec}
-        req = requests.get(queue_endpoint, params=payload, verify=False)
-        if req.status_code != 200:
-            raise Exception(req.text)
-        res = req.json()
-
-        queues = res['result']
-        self.queues = queues
-        if len(queues.get('recommended', [])) > 0:
-            self.default_queue = queues['recommended'][0]
-
-    def get_queues(self):
-        """
-        returned the queue and default queue saved in class
-        :return: Dict[str, str|List]
-        """
-        if len(self.queues) == {}:
-            raise Exception("Please initialize the JobType object with .initialize()")
-
-        return {
-            'queues': self.queues,
-            'default': self.default_queue
-        }
+        self._retrieve_hysds_ios()  # retrieve the HySDS io's
+        self._retrieve_queues()  # retrieve the queues
 
     def describe(self):
         """
@@ -452,10 +401,75 @@ class JobType(_MozartBase):
                 dataset_params += '\n'
         print(output + '\n' + tunable_params + '\n' + dataset_params)
 
+    def _retrieve_hysds_ios(self):
+        """
+        retrieve HySDS ios from GRQ's rest API and set the default input parameters
+        :return: None
+        """
+        host = self._cfg['host']
+        job_endpoint = os.path.join(host, 'grq/api/v0.1/hysds_io/type')
+
+        payload = {'id': self.hysds_io}
+        req = requests.get(job_endpoint, params=payload, verify=False)
+        if req.status_code != 200:
+            raise Exception(req.text)
+        res = req.json()
+
+        self.hysds_ios = res['result']  # saving the HySDS ios
+
+        params = res['result']['params']
+        for p in params:
+            param_name = p['name']
+
+            if p['from'] == 'value':  # hardwired params
+                self._params['hardwired_params'][param_name] = p['value']
+            elif p['from'] == 'submitter':
+                default_value = p.get('default', None)  # submitter params
+                if p['type'] == 'number':
+                    if default_value is not None:
+                        if type(default_value) == str:
+                            default_value = ast.literal_eval(default_value)
+                if p['type'] == 'boolean':
+                    if default_value is not None:
+                        if type(default_value) != bool:
+                            default_value = True if default_value.lower() == 'true' else False
+                self._params['input_params'][param_name] = default_value
+
+    def _retrieve_queues(self):
+        """
+        retrieve the job queues from Mozart's Rest API
+        :return: None
+        """
+        host = self._cfg['host']
+        queue_endpoint = os.path.join(host, 'mozart/api/v0.1/queue/list')
+        payload = {'id': self.job_spec}
+        req = requests.get(queue_endpoint, params=payload, verify=False)
+        if req.status_code != 200:
+            raise Exception(req.text)
+        res = req.json()
+
+        queues = res['result']
+        self.queues = queues
+        if len(queues.get('recommended', [])) > 0:
+            self.default_queue = queues['recommended'][0]
+
+    def get_queues(self):
+        """
+        returned the queue and default queue saved in class
+        :return: Dict[str, str|List]
+        """
+        if len(self.queues) == {}:
+            raise Exception("Please initialize the JobType object with .initialize()")
+
+        return {
+            'queues': self.queues,
+            'default': self.default_queue
+        }
+
     def set_input_params(self, params):
         """
         setting the user input parameters for the job
-        :param params: dict[str, any]
+        :param params: None
         """
         if type(params) != dict:
             raise Exception("params must be dictionary")
@@ -465,6 +479,66 @@ class JobType(_MozartBase):
 
         for k, v in params.items():
             constructed_params[k] = v
+        self._params['input_params'] = {
+            **current_params,
+            **constructed_params
+        }
+
+    def prompt_input_params(self):
+        """
+        prompting user for input parameters
+        :return: None
+        """
+        current_params = self._params['input_params']
+        constructed_params = {}
+
+        input_params = filter(lambda x: x['from'] == 'submitter', self.hysds_ios['params'])
+
+        for p in input_params:
+            param_name = p['name']
+            param_type = p['type']
+            default = p.get('default', None)
+            placeholder = p.get('placeholder', None)
+            optional = p.get('optional', False)
+
+            prompt = 'NAME: %s (%s)' % (param_name, param_type)
+            if placeholder:
+                prompt += ' (%s)' % placeholder
+            print(prompt)
+
+            input_prompt = 'SET VALUE'
+            if param_type == 'enum':
+                options = p['enumerables']
+                input_prompt += '. options (%s)' % options
+            elif param_type == 'boolean':
+                input_prompt += ' (true/false)'
+
+            if default is not None:
+                input_prompt += '.\nSkip to use default (%s)' % default
+            input_prompt += ': '
+
+            value = input(input_prompt)
+            if not value:
+                if default is not None:  # if value is not given, use the default already set
+                    continue
+                elif optional is True:
+                    constructed_params[param_name] = None
+                    continue
+                else:
+                    raise ValueError("%s is required" % param_name)
+
+            if param_type == 'number':
+                value = ast.literal_eval(value)
+                if type(value) not in (int, float):
+                    raise ValueError('{} is not type: number' % value)
+            elif param_type == 'boolean':
+                value = True if value == 'true' else False
+            elif param_type == 'object':
+                value = ast.literal_eval(value)
+                if type(value) not in (list, object):
+                    raise ValueError('{} is not a List or Dict' % value)
+            constructed_params[param_name] = value
+
         self._params['input_params'] = {
             **current_params,
             **constructed_params
@@ -651,7 +725,7 @@ class JobSet(_MozartBase):
                 raise TypeError("job_set must be a List[<Job>]")
             for job in job_set:
                 if job.__class__ != Job:
-                    raise TypeError("all entries in job_set must bbe of type <Job>")
+                    raise TypeError("all entries in job_set must be of type <Job>")
             self.job_set = job_set
 
     def __len__(self):
@@ -677,7 +751,9 @@ class JobSet(_MozartBase):
         will loop (with 30 second delay) until through all jobs and break if all jobs are completed (or failed)
         :return: str: job status when job completed (or fails)
         """
+        time.sleep(3)
         while True:
+            time.sleep(0.5)
             completed_jobs = 0
             for job in self.job_set:
                 try:
