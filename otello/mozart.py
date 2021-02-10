@@ -378,14 +378,16 @@ class JobType(_MozartBase):
 
         for p in self.hysds_ios['params']:
             param_name = p['name']
-            param_type = p['type']
             placeholder = p.get('placeholder')
 
             if p['from'] == 'submitter':
+                param_type = p.get('type', 'text')
                 default_value = p.get('default')
                 optional = p.get('optional', False)
+
                 tunable_params += '\tname: %s\n' % param_name
                 tunable_params += '\ttype: %s\n' % param_type
+
                 if placeholder:
                     tunable_params += '\tdesc: %s\n' % placeholder
                 if p['type'] == 'enum':
