@@ -43,16 +43,21 @@ def initialize():
     if host:
         config['host'] = host
 
+    # Username
+    existing_user = config.get('username')
+    user_prompt = 'Username (current value: %s): ' % existing_user if existing_user else 'Username: '
+    username = input(user_prompt)
+    if username:
+        config['username'] = username
+    else:
+        if existing_user:
+            config['username'] = existing_user
+        else:
+            raise RuntimeError("Please input user")
+
     is_auth = input('HySDS cluster authenticated (y/n): ')
     if is_auth.lower() == 'y':
         config['auth'] = True
-
-        # Username
-        existing_user = config.get('username')
-        user_prompt = 'Username (current value: %s): ' % existing_user if existing_user else 'Username: '
-        username = input(user_prompt)
-        if username:
-            config['username'] = username
 
         # Password
         password = getpass.getpass()

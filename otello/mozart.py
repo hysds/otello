@@ -714,6 +714,12 @@ class JobSet(_MozartBase):
         append: adding Job object to current set of jobs
         wait_for_completion: wait for all "completion" of jobs
     """
+    JOB_QUEUED = 'job-queued'
+    JOB_STARTED = 'job-started'
+    JOB_COMPLETED = 'job-completed'
+    JOB_FAILED = 'job-failed'
+    JOB_OFFLINE = 'job-offline'
+
     def __init__(self, job_set=None, cfg=None):
         """
         :param job_set: list[Job], list of Job(s)
@@ -747,6 +753,9 @@ class JobSet(_MozartBase):
         if job.__class__ != Job:
             raise TypeError("appended job must be of type <Job>")
         self.job_set.append(job)
+
+    def get_submitted_jobs(self):
+        pass
 
     def wait_for_completion(self):
         """
