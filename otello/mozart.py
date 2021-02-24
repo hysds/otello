@@ -16,6 +16,12 @@ class Mozart(Base):
     methods:
         get_job_type: returns a singular JobType
         get_job_types: retrieves a Dictionary of JobType(s) with the job_name
+        get_jobs: retrieves set of jobs submitted by the user
+        get_failed_jobs: retrieves set of failed jobs submitted by the user
+        get_queued_jobs: retrieves set of queued jobs submitted by the user
+        get_started_jobs: retrieves set of started jobs submitted by the user
+        get_completed_jobs: retrieves set of completed jobs submitted by the user
+        get_offline_jobs: retrieves set of offline jobs submitted by the user
     """
     QUEUED = 'job-queued'
     STARTED = 'job-started'
@@ -531,12 +537,6 @@ class Job(Base):
         res = req.json()
         return res['status']
 
-    def get_exception(self):
-        pass
-
-    def get_traceback(self):
-        pass
-
     def get_info(self):
         """
         Retrieve entire job payload (ES document)
@@ -552,12 +552,31 @@ class Job(Base):
         res = req.json()
         return res['result']
 
+    def get_exception(self):
+        info = self.get_info()
+        job_status = info['status']
+
+        if job_status == 'job-failed':
+            return info['error']
+        else:
+            raise ValueError('job status did not fail: %s' % job_status)
+
+    def get_traceback(self):
+        info = self.get_info()
+        job_status = info['status']
+
+        if job_status == 'job-failed':
+            return info['traceback']
+        else:
+            raise ValueError('job status did not fail: %s' % job_status)
+
     def revoke(self, tags=None, priority=0, version='v1.0.5'):
         """
         Submit revoke job with Revoke Job PGE
         :param tags: (optional) Tag job to track it
         :param priority: int (between 0-9)
         :param version: job version
+        :return: Job class object
         """
         if tags is None:
             tags = generate_tags('revoke')
@@ -605,7 +624,7 @@ class Job(Base):
         :param tags: str; job tag
         :param priority: int; job priority in RabbitMQ
         :param version: str; purge job version (default v1.0.5)
-        :return:
+        :return: Job class object
         """
         if tags is None:
             tags = generate_tags('purge')
@@ -647,44 +666,47 @@ class Job(Base):
         print("purge job submitted, id: %s" % job_id)
         return Job(job_id=job_id, cfg=self._cfg_file)
 
-    # def retry(self, tags=None, priority=0, version='v1.0.5'):
-    # TODO: need to figure out how to handle dataset:_jpath (maybe get the job metadata beforehand)
-    #   https://github.com/hysds/lightweight-jobs/blob/develop/docker/hysds-io.json.lw-mozart-retry
-    #     """
-    #     :param tags:
-    #     :param priority:
-    #     :param version:
-    #     :return:
-    #     """
-    #     if tags is None:
-    #         tags = generate_tags('retry')
-    #     if 9 < priority < 0:
-    #         print("priority not in range (0-9], defaulting to 5")
-    #         priority = 5
-    #
-    #     params = {
-    #         "retry_count_max": 10,
-    #         "job_priority_increment": 1
-    #     }
-    #     job_payload = {
-    #         'queue': 'system-jobs-queue',
-    #         'priority': priority,
-    #         'job_name': Job.RETRY_JOB_NAME,
-    #         'tags': '["%s"]' % tags,
-    #         'type': '%s:%s' % (Job.RETRY_JOB_NAME, version),
-    #         'params': json.dumps(params),
-    #         'enable_dedup': False
-    #     }
-    #
-    #     host = self._cfg['host']
-    #     endpoint = os.path.join(host, 'mozart/api/v0.1/job/submit')
-    #     req = requests.post(endpoint, data=job_payload, verify=False)
-    #     if req.status_code != 200:
-    #         raise Exception(req.text)
-    #     res = req.json()
-    #     job_id = res['result']
-    #     print("purge job submitted, id: %s" % job_id)
-    #     return Job(job_id=job_id, cfg=self._cfg_file)
+    def retry(self, tags=None, priority=0, version='v1.0.5'):
+        """
+        :param tags: str; job tag
+        :param priority: int; job priority in RabbitMQ
+        :param version: str; purge job version (default v1.0.5)
+        :return: Job class object
+        """
+        if tags is None:
+            tags = generate_tags('retry')
+        if 9 < priority < 0:
+            print("priority not in range (0-9], defaulting to 5")
+            priority = 5
+
+        job_info = self.get_info()
+        job_info_id = job_info['job']['job_info']['id']
+
+        params = {
+            "retry_count_max": 10,
+            "job_priority_increment": 1,
+            "type": "_doc",
+            "retry_job_id": job_info_id
+        }
+        job_payload = {
+            'queue': 'system-jobs-queue',
+            'priority': priority,
+            'job_name': Job.RETRY_JOB_NAME,
+            'tags': '["%s"]' % tags,
+            'type': '%s:%s' % (Job.RETRY_JOB_NAME, version),
+            'params': json.dumps(params),
+            'enable_dedup': False
+        }
+
+        host = self._cfg['host']
+        endpoint = os.path.join(host, 'mozart/api/v0.1/job/submit')
+        req = requests.post(endpoint, data=job_payload, verify=False)
+        if req.status_code != 200:
+            raise Exception(req.text)
+        res = req.json()
+        job_id = res['result']
+        print("retry job submitted, id: %s" % job_id)
+        return Job(job_id=job_id, cfg=self._cfg_file)
 
     def get_generated_products(self):
         """
@@ -753,6 +775,9 @@ class JobSet(Base):
 
     def __str__(self):
         return '[' + ', '.join(str(j) for j in self.job_set) + ']'
+
+    def size(self):
+        return len(self.job_set)
 
     def append(self, job):
         """
