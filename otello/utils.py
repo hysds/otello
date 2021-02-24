@@ -1,12 +1,6 @@
-import functools
+from datetime import datetime
 
 
-def decorator(func):
-    @functools.wraps(func)
-    def inner(ref, *args, **kwargs):
-        print("inside decorator!")
-        print(ref)
-        ref.load_cfg()
-        print("updated config!")
-        func(ref, *args, **kwargs)
-    return inner
+def generate_tags(job_type):
+    ts = datetime.now().isoformat()
+    return 'otello_%s_%s' % (job_type, ts)
