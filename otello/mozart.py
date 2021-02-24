@@ -1,180 +1,35 @@
 import os
 import ast
 import json
-from datetime import datetime
+from datetime import datetime, date
 import time
 import requests
 
 from otello.base import Base
+from otello.utils import generate_tags
 
 
-class _MozartBase(Base):
-    PURGE_JOB_NAME = 'job-lw-mozart-purge'
-
-    def __init__(self, cfg=None):
-        super().__init__(cfg=cfg)
-
-    @staticmethod
-    def __generate_tags(job_type):
-        ts = datetime.now().isoformat()
-        return 'otello_%s_%s' % (job_type, ts)
-
-    def _get_job_status(self, _id):
-        """
-        Return job-status (mozart/api/v0.1/job/status/{_id})
-        :param _id: ElasticSearch document id
-        :return: str, {job-queued, job-started, job-completed, job-failed, job-deduped, job-offline}
-        """
-        host = self._cfg['host']
-        endpoint = os.path.join(host, 'mozart/api/v0.1/job/status')
-        payload = {'id': _id}
-        req = requests.get(endpoint, params=payload, verify=False)
-        if req.status_code != 200:
-            raise Exception(req.text)
-        res = req.json()
-        return res['status']
-
-    def _get_job_info(self, _id):
-        """
-        Retrieve entire job payload (ES document)
-        :param _id: str
-        :return: dict[str, str]
-        """
-        host = self._cfg['host']
-        endpoint = os.path.join(host, 'mozart/api/v0.1/job/info')
-
-        payload = {'id': _id}
-        req = requests.get(endpoint, params=payload, verify=False)
-        if req.status_code != 200:
-            raise Exception(req.text)
-        res = req.json()
-        return res['result']
-
-    def _get_generated_products(self, _id):
-        """
-        Return products staged for failed/completed jobs (mozart/api/v0.1/job/products/<_id>)
-        :param _id: ElasticSearch document id
-        :return: dict[str, str]
-        """
-        host = self._cfg['host']
-        endpoint = os.path.join(host, 'mozart/api/v0.1/job/products/%s' % _id)
-        req = requests.get(endpoint, verify=False)
-        if req.status_code != 200:
-            raise Exception(req.text)
-        res = req.json()
-        return res['results']
-
-    def _remove_job(self, _id, tags=None, priority=0, version='v1.0.5'):
-        """
-        Remove Job record with Purge Job PGE (mozart/api/v0.1/job/submit)
-        :param _id: ElasticSearch document id
-        :param tags: str; job tag
-        :param priority: int; job priority in RabbitMQ
-        :param version: str; purge job version (default v1.0.5)
-        :return:
-        """
-        if _id is None:
-            raise Exception("ElasticSearch job _id must be supplied")
-        if tags is None:
-            tags = self.__generate_tags('purge')
-        if 9 < priority < 0:
-            print("priority not in range [0-9], defaulting to 5")
-            priority = 5
-
-        query = {
-            "query": {
-                "bool": {
-                    "must": [
-                        {"term": {"_id": _id}}
-                    ]
-                }
-            }
-        }
-        params = {
-            "query": query,
-            "operation": "purge",
-            "component": "mozart"
-        }
-        job_payload = {
-            'queue': 'system-jobs-queue',
-            'priority': priority,
-            'job_name': _MozartBase.PURGE_JOB_NAME,
-            'tags': '["%s"]' % tags,
-            'type': '%s:%s' % (_MozartBase.PURGE_JOB_NAME, version),
-            'params': json.dumps(params),
-            'enable_dedup': False
-        }
-
-        host = self._cfg['host']
-        endpoint = os.path.join(host, 'mozart/api/v0.1/job/submit')
-        req = requests.post(endpoint, data=job_payload, verify=False)
-        if req.status_code != 200:
-            raise Exception(req.text)
-        res = req.json()
-        job_id = res['result']
-        print("purge job submitted, id: %s" % job_id)
-        return Job(job_id=job_id, cfg=self._cfg_file)
-
-    def _revoke_job(self, _id, tags=None, priority=0, version='v1.0.5'):
-        """
-        revoke Mozart job
-        :param _id: (required) ElasticSearch document id
-        :param tags: (optional) Tag job to track it
-        :param priority: int (between 0-9)
-        :param version: job version
-        :return:
-        """
-        if _id is None:
-            raise Exception("ElasticSearch job _id must be supplied")
-        if tags is None:
-            tags = self.__generate_tags('revoke')
-        if 9 < priority < 0:
-            print("priority not in range (0-9], defaulting to 5")
-            priority = 5
-
-        query = {
-            "query": {
-                "bool": {
-                    "must": [
-                        {"term": {"_id": _id}}
-                    ]
-                }
-            }
-        }
-        params = {
-            "query": query,
-            "operation": "revoke",
-            "component": "mozart"
-        }
-        job_payload = {
-            'queue': 'system-jobs-queue',
-            'priority': priority,
-            'job_name': _MozartBase.PURGE_JOB_NAME,
-            'tags': '["%s"]' % tags,
-            'type': '%s:%s' % (_MozartBase.PURGE_JOB_NAME, version),
-            'params': json.dumps(params),
-            'enable_dedup': False
-        }
-
-        host = self._cfg['host']
-        endpoint = os.path.join(host, 'mozart/api/v0.1/job/submit')
-        req = requests.post(endpoint, data=job_payload, verify=False)
-        if req.status_code != 200:
-            raise Exception(req.text)
-        res = req.json()
-        job_id = res['result']
-        print("purge job submitted, id: %s" % job_id)
-        return Job(job_id=job_id, cfg=self._cfg_file)
-
-
-class Mozart(_MozartBase):
+class Mozart(Base):
     """
     Driver class for Mozart for users to get a list of available jobs. etc
 
     methods:
         get_job_type: returns a singular JobType
         get_job_types: retrieves a Dictionary of JobType(s) with the job_name
+        get_jobs: retrieves set of jobs submitted by the user
+        get_failed_jobs: retrieves set of failed jobs submitted by the user
+        get_queued_jobs: retrieves set of queued jobs submitted by the user
+        get_started_jobs: retrieves set of started jobs submitted by the user
+        get_completed_jobs: retrieves set of completed jobs submitted by the user
+        get_offline_jobs: retrieves set of offline jobs submitted by the user
     """
+    QUEUED = 'job-queued'
+    STARTED = 'job-started'
+    COMPLETED = 'job-completed'
+    FAILED = 'job-failed'
+    OFFLINE = 'job-offline'
+    STATUS_TYPES = {QUEUED, STARTED, COMPLETED, FAILED, OFFLINE}
+
     def get_job_types(self):
         """
         retrieve list of PGE jobs
@@ -218,81 +73,89 @@ class Mozart(_MozartBase):
 
         return JobType(hysds_io=hysds_io, job_spec=job_spec, label=label)
 
-    def get_queue(self, job_name):
+    def get_jobs(self, tag=None, job_type=None, queue=None, priority=None, status=None, start_time=None, end_time=None):
         """
-        retrieve queue list and recommended queue
-        :param job_name: str, job_spec name
-        :return: dict[str, List[str]]
+        get list of submitted jobs by user
+        :param tag: (optional) str; user-defined job tag
+        :param job_type: (optional) str; the name + version of the job, ie. job-hello_world:develop
+        :param queue: (optional) submitted job queue
+        :param priority: (optional) int, 0-9
+        :param status: {job-queued, job-started, job-failed, job-completed, job-offline}
+        :param start_time: {str, int, datetime.datetime or datetime.date} start time of @timestamp field
+        :param end_time: {str, int, datetime.datetime or datetime.date} end time of @timestamp field
+        :return: JobSet class object
         """
+        username = self._cfg.get('username')
+        if username is None:
+            raise RuntimeError("username not found, please initialize otello")
+
         host = self._cfg['host']
-        endpoint = os.path.join(host, 'mozart/api/v0.1/queue/list')
+        endpoint = os.path.join(host, 'mozart/api/v0.1/job/user', username)
 
-        payload = {'id': job_name}
-        req = requests.get(endpoint, params=payload, verify=False)
-        if req.status_code != 200:
-            raise Exception(req.text)
-        res = req.json()
-        return res['result']
+        params = {}
+        if tag is not None:
+            params['tag'] = tag
+        if job_type is not None:
+            params['job_type'] = job_type
+        if queue is not None:
+            params['queue'] = queue
+        if priority is not None:
+            if priority < 0:
+                priority = 0
+            elif priority > 9:
+                priority = 9
+            params['priority'] = priority
+        if status is not None:
+            if status not in Mozart.STATUS_TYPES:
+                raise RuntimeError("job status must be in %s" % Mozart.STATUS_TYPES)
+            params['status'] = status
+        if start_time is not None:
+            if start_time.__class__ in (datetime, date):
+                start_time = start_time.isoformat()
+            params['start_time'] = start_time
+        if end_time is not None:
+            if end_time.__class__ in (datetime, date):
+                end_time = end_time.isoformat()
+            params['end_time'] = end_time
 
-    def get_job_params(self, job_name):
-        """
-        grq/api/v0.1/grq/job-params?job_type=job-SCIFLO_GCOV:develop
-        :param job_name: str, job_spec name
-        :return: List[str]
-        """
-        host = self._cfg['host']
-        endpoint = os.path.join(host, 'grq/api/v0.1/grq/job-params')
+        js = JobSet()
+        page_size, offset = 100, 0
+        while True:
+            params['page_size'] = page_size
+            params['offset'] = offset
+            req = requests.get(endpoint, params=params, verify=False)
+            if req.status_code != 200:
+                raise Exception(req.text)
+            res = req.json()
+            if len(res['result']) < 1:
+                break
+            for _id in res['result']:
+                js.append(Job(_id))
+            offset += 100
+        return js
 
-        payload = {'job_type': job_name}
-        req = requests.get(endpoint, params=payload, verify=False)
-        if req.status_code != 200:
-            raise Exception(req.text)
-        res = req.json()
-        return res['params']
+    def get_failed_jobs(self, **kwargs):
+        kwargs['status'] = Mozart.FAILED
+        return self.get_jobs(**kwargs)
 
-    def get_job_info(self, _id):
-        """
-        Retrieve entire job payload (ES document)
-        :param _id: str
-        :return: dict[str, str]
-        """
-        return self._get_job_info(_id)
+    def get_queued_jobs(self, **kwargs):
+        kwargs['status'] = Mozart.QUEUED
+        return self.get_jobs(**kwargs)
 
-    def get_generated_products(self, _id):
-        """
-        Return products staged for failed/completed jobs
-        :param _id: ElasticSearch document id
-        :return: dict[str, str]
-        """
-        return self._get_generated_products(_id)
+    def get_started_jobs(self, **kwargs):
+        kwargs['status'] = Mozart.STARTED
+        return self.get_jobs(**kwargs)
 
-    def get_job_status(self, _id):
-        """
-        Return job-status
-        :return: str, {job-queued, job-started, job-completed, job-failed, job-deduped, job-offline}
-        """
-        return self._get_job_status(_id)
+    def get_completed_jobs(self, **kwargs):
+        kwargs['status'] = Mozart.COMPLETED
+        return self.get_jobs(**kwargs)
 
-    def revoke_job(self, _id, **kwargs):
-        """
-        Submit revoke job with Revoke Job PGE
-        :param _id ElasticSearch document id
-        :param kwargs: tags (optional), priority, version
-        :return:
-        """
-        return self._revoke_job(_id, **kwargs)
-
-    def remove_job(self, _id, **kwargs):
-        """
-        Remove Job record with Purge Job PGE
-        :param _id ElasticSearch document id
-        :param kwargs: tags (optional), priority, version
-        :return:
-        """
-        return self._remove_job(_id, **kwargs)
+    def get_offline_jobs(self, **kwargs):
+        kwargs['status'] = Mozart.OFFLINE
+        return self.get_jobs(**kwargs)
 
 
-class JobType(_MozartBase):
+class JobType(Base):
     """
     Mozart Job Type developers can use to submit to HySDS as jobs
 
@@ -306,6 +169,7 @@ class JobType(_MozartBase):
         get_input_dataset: retrieve the dataset parameters
         submit_job: submit Job to HySDS, returns a Job class object
     """
+
     def __init__(self, hysds_io=None, job_spec=None, label=None, cfg=None):
         """
         :param hysds_io: (str) hysds_ios ID
@@ -340,12 +204,63 @@ class JobType(_MozartBase):
         else:
             return 'HySDS Job: %s' % self.job_spec
 
+    def _retrieve_hysds_ios(self):
+        """
+        retrieve HySDS ios from GRQ's rest API and set the default input parameters
+        :return: None
+        """
+        host = self._cfg['host']
+        job_endpoint = os.path.join(host, 'grq/api/v0.1/hysds_io/type')
+
+        payload = {'id': self.hysds_io}
+        req = requests.get(job_endpoint, params=payload, verify=False)
+        if req.status_code != 200:
+            raise Exception(req.text)
+        res = req.json()
+
+        self.hysds_ios = res['result']  # saving the HySDS ios
+
+        params = res['result']['params']
+        for p in params:
+            param_name = p['name']
+
+            if p['from'] == 'value':  # hardwired params
+                self._params['hardwired_params'][param_name] = p['value']
+            elif p['from'] == 'submitter':
+                default_value = p.get('default', None)  # submitter params
+                if p['type'] == 'number':
+                    if default_value is not None:
+                        if type(default_value) == str:
+                            default_value = ast.literal_eval(default_value)
+                if p['type'] == 'boolean':
+                    if default_value is not None:
+                        if type(default_value) != bool:
+                            default_value = True if default_value.lower() == 'true' else False
+                self._params['input_params'][param_name] = default_value
+
+    def _retrieve_queues(self):
+        """
+        retrieve the job queues from Mozart's Rest API
+        :return: None
+        """
+        host = self._cfg['host']
+        queue_endpoint = os.path.join(host, 'mozart/api/v0.1/queue/list')
+        payload = {'id': self.job_spec}
+        req = requests.get(queue_endpoint, params=payload, verify=False)
+        if req.status_code != 200:
+            raise Exception(req.text)
+        res = req.json()
+
+        queues = res['result']
+        self.queues = queues
+        if len(queues.get('recommended', [])) > 0:
+            self.default_queue = queues['recommended'][0]
+
     def initialize(self):
         """
         makes necessary backend API calls to get the HySDS-io params
         :return:
         """
-
         self._retrieve_hysds_ios()  # retrieve the HySDS io's
         self._retrieve_queues()  # retrieve the queues
 
@@ -402,58 +317,6 @@ class JobType(_MozartBase):
                 dataset_params += '\tname: %s\n' % param_name
                 dataset_params += '\n'
         print(output + '\n' + tunable_params + '\n' + dataset_params)
-
-    def _retrieve_hysds_ios(self):
-        """
-        retrieve HySDS ios from GRQ's rest API and set the default input parameters
-        :return: None
-        """
-        host = self._cfg['host']
-        job_endpoint = os.path.join(host, 'grq/api/v0.1/hysds_io/type')
-
-        payload = {'id': self.hysds_io}
-        req = requests.get(job_endpoint, params=payload, verify=False)
-        if req.status_code != 200:
-            raise Exception(req.text)
-        res = req.json()
-
-        self.hysds_ios = res['result']  # saving the HySDS ios
-
-        params = res['result']['params']
-        for p in params:
-            param_name = p['name']
-
-            if p['from'] == 'value':  # hardwired params
-                self._params['hardwired_params'][param_name] = p['value']
-            elif p['from'] == 'submitter':
-                default_value = p.get('default', None)  # submitter params
-                if p['type'] == 'number':
-                    if default_value is not None:
-                        if type(default_value) == str:
-                            default_value = ast.literal_eval(default_value)
-                if p['type'] == 'boolean':
-                    if default_value is not None:
-                        if type(default_value) != bool:
-                            default_value = True if default_value.lower() == 'true' else False
-                self._params['input_params'][param_name] = default_value
-
-    def _retrieve_queues(self):
-        """
-        retrieve the job queues from Mozart's Rest API
-        :return: None
-        """
-        host = self._cfg['host']
-        queue_endpoint = os.path.join(host, 'mozart/api/v0.1/queue/list')
-        payload = {'id': self.job_spec}
-        req = requests.get(queue_endpoint, params=payload, verify=False)
-        if req.status_code != 200:
-            raise Exception(req.text)
-        res = req.json()
-
-        queues = res['result']
-        self.queues = queues
-        if len(queues.get('recommended', [])) > 0:
-            self.default_queue = queues['recommended'][0]
 
     def get_queues(self):
         """
@@ -602,7 +465,11 @@ class JobType(_MozartBase):
         if queue is None and self.default_queue is None:
             raise Exception("queue must be supplied")
         if tag is None:
-            tag = self.__generate_tags('submit_job')
+            tag = generate_tags('submit_job')
+
+        username = self._cfg.get('username')
+        if username is None:
+            raise RuntimeError("username not found, please initialize otello")
 
         params = {
             **self._params['dataset_params'],
@@ -611,6 +478,7 @@ class JobType(_MozartBase):
         }
         job_split = self.job_spec.split(':')
         job_payload = {
+            'username': username,
             'queue': queue or self.default_queue,
             'priority': priority,
             'job_name': job_split[0],
@@ -629,7 +497,7 @@ class JobType(_MozartBase):
         return Job(job_id=job_id, cfg=self._cfg_file)
 
 
-class Job(_MozartBase):
+class Job(Base):
     """
     Job submitted to HySDS
 
@@ -641,6 +509,10 @@ class Job(_MozartBase):
         get_generated_products: Return products staged for failed/completed jobs
         wait_for_completion: will loop (with 30 second delay) until the job compeltes (or fails)
     """
+
+    PURGE_JOB_NAME = 'job-lw-mozart-purge'
+    RETRY_JOB_NAME = 'job-lw-mozart-retry'
+
     def __init__(self, job_id=None, cfg=None):
         """
         :param job_id: str, job UUID
@@ -656,37 +528,198 @@ class Job(_MozartBase):
         Return job-status
         :return: str, {job-queued, job-started, job-completed, job-failed, job-deduped, job-offline}
         """
-        return self._get_job_status(self.job_id)
+        host = self._cfg['host']
+        endpoint = os.path.join(host, 'mozart/api/v0.1/job/status')
+        payload = {'id': self.job_id}
+        req = requests.get(endpoint, params=payload, verify=False)
+        if req.status_code != 200:
+            raise Exception(req.text)
+        res = req.json()
+        return res['status']
 
     def get_info(self):
         """
         Retrieve entire job payload (ES document)
         :return: dict[str, str]
         """
-        return self._get_job_info(self.job_id)
+        host = self._cfg['host']
+        endpoint = os.path.join(host, 'mozart/api/v0.1/job/info')
 
-    def revoke(self, **kwargs):
+        payload = {'id': self.job_id}
+        req = requests.get(endpoint, params=payload, verify=False)
+        if req.status_code != 200:
+            raise Exception(req.text)
+        res = req.json()
+        return res['result']
+
+    def get_exception(self):
+        info = self.get_info()
+        job_status = info['status']
+
+        if job_status == 'job-failed':
+            return info['error']
+        else:
+            raise ValueError('job status did not fail: %s' % job_status)
+
+    def get_traceback(self):
+        info = self.get_info()
+        job_status = info['status']
+
+        if job_status == 'job-failed':
+            return info['traceback']
+        else:
+            raise ValueError('job status did not fail: %s' % job_status)
+
+    def revoke(self, tags=None, priority=0, version='v1.0.5'):
         """
         Submit revoke job with Revoke Job PGE
-        :param kwargs: tags (optional), priority, version
-        :return:
+        :param tags: (optional) Tag job to track it
+        :param priority: int (between 0-9)
+        :param version: job version
+        :return: Job class object
         """
-        return self._revoke_job(self.job_id, **kwargs)
+        if tags is None:
+            tags = generate_tags('revoke')
+        if 9 < priority < 0:
+            print("priority not in range (0-9], defaulting to 5")
+            priority = 5
 
-    def remove(self, **kwargs):
+        query = {
+            "query": {
+                "bool": {
+                    "must": [
+                        {"term": {"_id": self.job_id}}
+                    ]
+                }
+            }
+        }
+        params = {
+            "query": query,
+            "operation": "revoke",
+            "component": "mozart"
+        }
+        job_payload = {
+            'queue': 'system-jobs-queue',
+            'priority': priority,
+            'job_name': Job.PURGE_JOB_NAME,
+            'tags': '["%s"]' % tags,
+            'type': '%s:%s' % (Job.PURGE_JOB_NAME, version),
+            'params': json.dumps(params),
+            'enable_dedup': False
+        }
+
+        host = self._cfg['host']
+        endpoint = os.path.join(host, 'mozart/api/v0.1/job/submit')
+        req = requests.post(endpoint, data=job_payload, verify=False)
+        if req.status_code != 200:
+            raise Exception(req.text)
+        res = req.json()
+        job_id = res['result']
+        print("purge job submitted, id: %s" % job_id)
+        return Job(job_id=job_id, cfg=self._cfg_file)
+
+    def remove(self, tags=None, priority=0, version='v1.0.5'):
         """
         Remove Job record with Purge Job PGE
-        :param kwargs: tags (optional), priority, version
-        :return:
+        :param tags: str; job tag
+        :param priority: int; job priority in RabbitMQ
+        :param version: str; purge job version (default v1.0.5)
+        :return: Job class object
         """
-        return self._remove_job(self.job_id, **kwargs)
+        if tags is None:
+            tags = generate_tags('purge')
+        if 9 < priority < 0:
+            print("priority not in range [0-9], defaulting to 5")
+            priority = 5
+
+        query = {
+            "query": {
+                "bool": {
+                    "must": [
+                        {"term": {"_id": self.job_id}}
+                    ]
+                }
+            }
+        }
+        params = {
+            "query": query,
+            "operation": "purge",
+            "component": "mozart"
+        }
+        job_payload = {
+            'queue': 'system-jobs-queue',
+            'priority': priority,
+            'job_name': Job.PURGE_JOB_NAME,
+            'tags': '["%s"]' % tags,
+            'type': '%s:%s' % (Job.PURGE_JOB_NAME, version),
+            'params': json.dumps(params),
+            'enable_dedup': False
+        }
+
+        host = self._cfg['host']
+        endpoint = os.path.join(host, 'mozart/api/v0.1/job/submit')
+        req = requests.post(endpoint, data=job_payload, verify=False)
+        if req.status_code != 200:
+            raise Exception(req.text)
+        res = req.json()
+        job_id = res['result']
+        print("purge job submitted, id: %s" % job_id)
+        return Job(job_id=job_id, cfg=self._cfg_file)
+
+    def retry(self, tags=None, priority=0, version='v1.0.5'):
+        """
+        :param tags: str; job tag
+        :param priority: int; job priority in RabbitMQ
+        :param version: str; purge job version (default v1.0.5)
+        :return: Job class object
+        """
+        if tags is None:
+            tags = generate_tags('retry')
+        if 9 < priority < 0:
+            print("priority not in range (0-9], defaulting to 5")
+            priority = 5
+
+        job_info = self.get_info()
+        job_info_id = job_info['job']['job_info']['id']
+
+        params = {
+            "retry_count_max": 10,
+            "job_priority_increment": 1,
+            "type": "_doc",
+            "retry_job_id": job_info_id
+        }
+        job_payload = {
+            'queue': 'system-jobs-queue',
+            'priority': priority,
+            'job_name': Job.RETRY_JOB_NAME,
+            'tags': '["%s"]' % tags,
+            'type': '%s:%s' % (Job.RETRY_JOB_NAME, version),
+            'params': json.dumps(params),
+            'enable_dedup': False
+        }
+
+        host = self._cfg['host']
+        endpoint = os.path.join(host, 'mozart/api/v0.1/job/submit')
+        req = requests.post(endpoint, data=job_payload, verify=False)
+        if req.status_code != 200:
+            raise Exception(req.text)
+        res = req.json()
+        job_id = res['result']
+        print("retry job submitted, id: %s" % job_id)
+        return Job(job_id=job_id, cfg=self._cfg_file)
 
     def get_generated_products(self):
         """
         Return products staged for failed/completed jobs
         :return: dict[str, str]
         """
-        return self._get_generated_products(self.job_id)
+        host = self._cfg['host']
+        endpoint = os.path.join(host, 'mozart/api/v0.1/job/products/%s' % self.job_id)
+        req = requests.get(endpoint, verify=False)
+        if req.status_code != 200:
+            raise Exception(req.text)
+        res = req.json()
+        return res['results']
 
     def wait_for_completion(self):
         """
@@ -705,7 +738,7 @@ class Job(_MozartBase):
             time.sleep(30)
 
 
-class JobSet(_MozartBase):
+class JobSet(Base):
     """
     List of Job class objects to track multiple job submissions
     able to iterate through and check for multiple job completions
@@ -714,6 +747,7 @@ class JobSet(_MozartBase):
         append: adding Job object to current set of jobs
         wait_for_completion: wait for all "completion" of jobs
     """
+
     def __init__(self, job_set=None, cfg=None):
         """
         :param job_set: list[Job], list of Job(s)
@@ -738,6 +772,12 @@ class JobSet(_MozartBase):
 
     def __getitem__(self, i):
         return self.job_set[i]
+
+    def __str__(self):
+        return '[' + ', '.join(str(j) for j in self.job_set) + ']'
+
+    def size(self):
+        return len(self.job_set)
 
     def append(self, job):
         """

@@ -26,6 +26,7 @@ It will prompt the user to enter the HySDS host and parameters for authenticatio
 ```bash
 $ otello init
 HySDS host (current value: https://###.##.###.###/):
+Username (current value: ########):
 HySDS cluster authenticated (y/n): n
 
 auth: false
@@ -83,6 +84,8 @@ m = Mozart()
 | ------ | ---- | ----- | ------ |
 | `get_job_types` | return the available list of HySDS jobs |  | `Dict[str, JobType]` |
 | `get_job_type` | returns a single `JobType` class instance | `job_type`: `str` | `JobType` |
+| `get_jobs` | returns `JobSet` of user submitted jobs | (all optional) `tag`, `job_type`, `queue`, `priority`, `status`, `start_time`, `end_time` | `JobSet` |
+
 
 `JobType` object methods:
 
@@ -168,14 +171,23 @@ submitting a job will return a HySDS job instance, wrapped in the `Job` class
 | `get_info` | returns job metadata stored in ElasticSearch | | `Dict[str, str or Dict]` |
 | `revoke` | submits a HySDS job to stop the specified job | | `Job` object |
 | `remove` | submits a HySDS job to remove/delete the specified job | | `Job` object |
+| `retry` | submits a HySDS job to retry current job | | `Job` object |
 | `wait_for_completion` | blocking function to wait for job completion (success or failure) | | `str` |
 | `get_generated_products` | receives metadata of published products generated from the submitted job | | `Dict[str or Dict]`
+| `get_exception` | returns `exception` if job failed | | `str`
+| `get_traceback` | returns `traceback` if job failed | | `str`
 
 
 
 ### Submitting multiple jobs
 `otello` provides a dedicated class (`JobSet`) to handle multiple job submissions
 * the `JobSet` class takes in a `List` of `Job` class objects in its constructor
+* Can use builtin python code:
+    * `len(js)`
+    * `js.append()`
+    * `str(js)`
+    * can iterate in `for` loop, ie. `for j in js:`
+    * can index or retrieve, ie. `js[0]`
 
 `JobSet` object methods:
 

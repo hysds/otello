@@ -8,7 +8,6 @@ class Base:
         if cfg is None:
             cfg_dir = os.path.join(str(Path.home()), '.config/otello')
             cfg = os.path.join(cfg_dir, 'config.yml')
-            # print("config file not given, defaulting to %s" % cfg)
 
         self._cfg_file = cfg
         try:
