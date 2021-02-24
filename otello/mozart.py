@@ -1,7 +1,7 @@
 import os
 import ast
 import json
-from datetime import datetime
+from datetime import datetime, date
 import time
 import requests
 
@@ -22,6 +22,7 @@ class Mozart(Base):
     COMPLETED = 'job-completed'
     FAILED = 'job-failed'
     OFFLINE = 'job-offline'
+    STATUS_TYPES = {QUEUED, STARTED, COMPLETED, FAILED, OFFLINE}
 
     def get_job_types(self):
         """
@@ -66,7 +67,7 @@ class Mozart(Base):
 
         return JobType(hysds_io=hysds_io, job_spec=job_spec, label=label)
 
-    def get_jobs(self, tag=None, job_type=None, queue=None, priority=None, status=None):
+    def get_jobs(self, tag=None, job_type=None, queue=None, priority=None, status=None, start_time=None, end_time=None):
         """
         get list of submitted jobs by user
         :param tag: (optional) str; user-defined job tag
@@ -74,7 +75,9 @@ class Mozart(Base):
         :param queue: (optional) submitted job queue
         :param priority: (optional) int, 0-9
         :param status: {job-queued, job-started, job-failed, job-completed, job-offline}
-        :return:
+        :param start_time: {str, int, datetime.datetime or datetime.date} start time of @timestamp field
+        :param end_time: {str, int, datetime.datetime or datetime.date} end time of @timestamp field
+        :return: JobSet class object
         """
         username = self._cfg.get('username')
         if username is None:
@@ -97,7 +100,17 @@ class Mozart(Base):
                 priority = 9
             params['priority'] = priority
         if status is not None:
+            if status not in Mozart.STATUS_TYPES:
+                raise RuntimeError("job status must be in %s" % Mozart.STATUS_TYPES)
             params['status'] = status
+        if start_time is not None:
+            if start_time.__class__ in (datetime, date):
+                start_time = start_time.isoformat()
+            params['start_time'] = start_time
+        if end_time is not None:
+            if end_time.__class__ in (datetime, date):
+                end_time = end_time.isoformat()
+            params['end_time'] = end_time
 
         js = JobSet()
         page_size, offset = 100, 0
@@ -517,6 +530,12 @@ class Job(Base):
             raise Exception(req.text)
         res = req.json()
         return res['status']
+
+    def get_exception(self):
+        pass
+
+    def get_traceback(self):
+        pass
 
     def get_info(self):
         """
