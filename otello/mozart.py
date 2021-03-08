@@ -496,7 +496,7 @@ class JobType(Base):
             raise Exception(req.text)
         res = req.json()
         job_id = res['result']
-        return Job(job_id=job_id, cfg=self._cfg_file)
+        return Job(job_id=job_id, tags=tag, cfg=self._cfg_file)
 
 
 class Job(Base):
@@ -633,7 +633,7 @@ class Job(Base):
         res = req.json()
         job_id = res['result']
         print("purge job submitted, id: %s" % job_id)
-        return Job(job_id=job_id, cfg=self._cfg_file)
+        return Job(job_id=job_id, tags=tags, cfg=self._cfg_file)
 
     def remove(self, tags=None, priority=0, version='v1.0.5'):
         """
@@ -681,7 +681,7 @@ class Job(Base):
         res = req.json()
         job_id = res['result']
         print("purge job submitted, id: %s" % job_id)
-        return Job(job_id=job_id, cfg=self._cfg_file)
+        return Job(job_id=job_id, tags=tags, cfg=self._cfg_file)
 
     def retry(self, tags=None, priority=0, version='v1.0.5'):
         """
@@ -723,7 +723,7 @@ class Job(Base):
         res = req.json()
         job_id = res['result']
         print("retry job submitted, id: %s" % job_id)
-        return Job(job_id=job_id, cfg=self._cfg_file)
+        return Job(job_id=job_id, tags=tags, cfg=self._cfg_file)
 
     def get_generated_products(self):
         """
