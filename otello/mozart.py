@@ -129,8 +129,10 @@ class Mozart(Base):
             res = req.json()
             if len(res['result']) < 1:
                 break
-            for _id in res['result']:
-                js.append(Job(_id))
+            for job in res['result']:
+                _id = job['id']
+                tags = job['tags']
+                js.append(Job(_id, tags))
             offset += 100
         return js
 
@@ -513,15 +515,30 @@ class Job(Base):
     PURGE_JOB_NAME = 'job-lw-mozart-purge'
     RETRY_JOB_NAME = 'job-lw-mozart-retry'
 
-    def __init__(self, job_id=None, cfg=None):
+    def __init__(self, job_id=None, tags=None, cfg=None):
         """
         :param job_id: str, job UUID
         """
         super().__init__(cfg=cfg)
         self.job_id = job_id
+        if tags is not None:
+            if type(tags) == str:
+                self.tags = [tags]
+            elif type(tags) == list:
+                self.tags = tags
+            else:
+                raise TypeError('tags must be type {str, list}')
+        else:
+            self.tags = None
 
     def __str__(self):
-        return 'Mozart Job: <%s>' % self.job_id
+        if self.tags is not None:
+            if len(self.tags) == 1:
+                return 'Tag: %s, ID: <%s>' % (self.tags[0], self.job_id)
+            else:
+                return 'Tags: %s, ID: <%s>' % (self.tags, self.job_id)
+        else:
+            return 'Job ID: <%s>' % self.job_id
 
     def get_status(self):
         """
@@ -730,7 +747,7 @@ class Job(Base):
         while True:
             try:
                 status = self.get_status()
-                print(f"{self.job_id}: {status} {datetime.utcnow().isoformat('T')}")
+                print(f"{self}: {status} {datetime.utcnow().isoformat('T')}")
                 if status in ('job-failed', 'job-deduped', 'job-completed', 'job-offline'):
                     return status
             except Exception as e:
@@ -800,7 +817,7 @@ class JobSet(Base):
             for job in self.job_set:
                 try:
                     status = job.get_status()
-                    print(f"{job.job_id}: {status} {datetime.utcnow().isoformat('T')}")
+                    print(f"{job}: {status} {datetime.utcnow().isoformat('T')}")
                     if status in ('job-failed', 'job-deduped', 'job-completed', 'job-offline'):
                         completed_jobs += 1
                 except Exception as e:
