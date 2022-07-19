@@ -35,7 +35,7 @@ class Mozart(Base):
         retrieve list of PGE jobs
         :return: dict[str, JobType]
         """
-        host = self._cfg['host']+":8878"
+        host = self._cfg['grq_host']
         endpoint = os.path.join(host, 'api/v0.1/grq/on-demand')
 
         req = requests.get(endpoint, verify=False)
@@ -57,7 +57,7 @@ class Mozart(Base):
         retrieve single PGE job
         :return: JobType
         """
-        host = self._cfg['host']+":8878"
+        host = self._cfg['grq_host']
         endpoint = os.path.join(host, 'api/v0.1/grq/on-demand')
 
         payload = {'id': job}
@@ -89,7 +89,7 @@ class Mozart(Base):
         if username is None:
             raise RuntimeError("username not found, please initialize otello")
 
-        host = self._cfg['host']+":8888"
+        host = self._cfg['mozart_host']
         endpoint = os.path.join(host, 'api/v0.1/job/user', username)
 
         params = {}
@@ -211,7 +211,7 @@ class JobType(Base):
         retrieve HySDS ios from GRQ's rest API and set the default input parameters
         :return: None
         """
-        host = self._cfg['host']+":8878"
+        host = self._cfg['grq_host']
         job_endpoint = os.path.join(host, 'api/v0.1/hysds_io/type')
 
         payload = {'id': self.hysds_io}
@@ -245,7 +245,7 @@ class JobType(Base):
         retrieve the job queues from Mozart's Rest API
         :return: None
         """
-        host = self._cfg['host']+":8888"
+        host = self._cfg['mozart_host']
         queue_endpoint = os.path.join(host, 'api/v0.1/queue/list')
         payload = {'id': self.job_spec}
         req = requests.get(queue_endpoint, params=payload, verify=False)
@@ -489,7 +489,7 @@ class JobType(Base):
             'params': json.dumps(params),
             'enable_dedup': False
         }
-        host = self._cfg['host']+":8888"
+        host = self._cfg['mozart_host']
         endpoint = os.path.join(host, 'api/v0.1/job/submit')
         req = requests.post(endpoint, data=job_payload, verify=False)
         if req.status_code != 200:
@@ -545,7 +545,7 @@ class Job(Base):
         Return job-status
         :return: str, {job-queued, job-started, job-completed, job-failed, job-deduped, job-offline}
         """
-        host = self._cfg['host']+":8888"
+        host = self._cfg['mozart_host']
         endpoint = os.path.join(host, 'api/v0.1/job/status')
         payload = {'id': self.job_id}
         req = requests.get(endpoint, params=payload, verify=False)
@@ -559,7 +559,7 @@ class Job(Base):
         Retrieve entire job payload (ES document)
         :return: dict[str, str]
         """
-        host = self._cfg['host']+":8888"
+        host = self._cfg['mozart_host']
         endpoint = os.path.join(host, 'api/v0.1/job/info')
 
         payload = {'id': self.job_id}
@@ -625,7 +625,7 @@ class Job(Base):
             'enable_dedup': False
         }
 
-        host = self._cfg['host']+":8888"
+        host = self._cfg['mozart_host']
         endpoint = os.path.join(host, 'api/v0.1/job/submit')
         req = requests.post(endpoint, data=job_payload, verify=False)
         if req.status_code != 200:
@@ -673,7 +673,7 @@ class Job(Base):
             'enable_dedup': False
         }
 
-        host = self._cfg['host']+":8888"
+        host = self._cfg['mozart_host']
         endpoint = os.path.join(host, 'api/v0.1/job/submit')
         req = requests.post(endpoint, data=job_payload, verify=False)
         if req.status_code != 200:
@@ -715,7 +715,7 @@ class Job(Base):
             'enable_dedup': False
         }
 
-        host = self._cfg['host']+":8888"
+        host = self._cfg['mozart_host']
         endpoint = os.path.join(host, 'api/v0.1/job/submit')
         req = requests.post(endpoint, data=job_payload, verify=False)
         if req.status_code != 200:
@@ -730,7 +730,7 @@ class Job(Base):
         Return products staged for failed/completed jobs
         :return: dict[str, str]
         """
-        host = self._cfg['host']+":8888"
+        host = self._cfg['mozart_host']
         endpoint = os.path.join(host, 'api/v0.1/job/products/%s' % self.job_id)
         req = requests.get(endpoint, verify=False)
         if req.status_code != 200:
