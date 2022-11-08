@@ -435,9 +435,10 @@ class JobType(Base):
                 else:
                     # case 2: remove dataset_jpath:_source, get list of paths and traverse
                     parsed_path = parsed_path.split('.')
+                    ds = {**dataset}
                     for path in parsed_path:
-                        dataset = dataset[path]
-                    self._params['dataset_params'][param_name] = dataset
+                        ds = ds[path]
+                    self._params['dataset_params'][param_name] = ds
 
     def get_hardwire_params(self):
         return self._params['hardwired_params']
