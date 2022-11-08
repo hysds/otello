@@ -431,7 +431,6 @@ class JobType(Base):
                 parsed_path = p['from'].replace('dataset_jpath:', '').replace('_source.', '')
                 if parsed_path == '_id':
                     # case 1: if _id, get id instead from pele results
-                    print(dataset)
                     print(f"SELF_PARAMS: {self._params}")
                     print(f"PARAM_NAME: {param_name}")
                     self._params['dataset_params'][param_name] = dataset['id']
