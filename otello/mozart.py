@@ -420,6 +420,7 @@ class JobType(Base):
             raise Exception("dataset must be set for your job")
         if not self.hysds_ios:
             raise Exception("Job specifications is empty, please initialize the JobType with .initialize()")
+        print(f"{type(dataset)}")
         print(dataset)
         dataset_params = filter(lambda x: x['from'].startswith('dataset_jpath'), self.hysds_ios['params'])
         for p in dataset_params:
@@ -431,6 +432,7 @@ class JobType(Base):
                 parsed_path = p['from'].replace('dataset_jpath:', '').replace('_source.', '')
                 if parsed_path == '_id':
                     # case 1: if _id, get id instead from pele results
+                    print(f"{type(dataset)}")
                     print(f"SELF_PARAMS: {self._params}")
                     print(f"PARAM_NAME: {param_name}")
                     self._params['dataset_params'][param_name] = dataset['id']
