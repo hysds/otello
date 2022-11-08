@@ -425,6 +425,7 @@ class JobType(Base):
         dataset_params = filter(lambda x: x['from'].startswith('dataset_jpath'), self.hysds_ios['params'])
         for p in dataset_params:
             param_name = p['name']
+            print(f"param_name: {param_name}")
             if 'lambda' in p:
                 print(f"{type(dataset)}")
                 f = eval(p['lambda'])
