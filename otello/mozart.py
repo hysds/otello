@@ -420,7 +420,7 @@ class JobType(Base):
             raise Exception("dataset must be set for your job")
         if not self.hysds_ios:
             raise Exception("Job specifications is empty, please initialize the JobType with .initialize()")
-
+        print(dataset)
         dataset_params = filter(lambda x: x['from'].startswith('dataset_jpath'), self.hysds_ios['params'])
         for p in dataset_params:
             param_name = p['name']
