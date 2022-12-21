@@ -27,8 +27,7 @@ class Base:
                 self._session.headers.update({"Authorization": f"Basic {self._cfg['token']}"})
             else:
                 raise Exception(f"Missing 'token' field in configuration file: {self._cfg}")
-        else:
-            self._session.verify = False
+        self._session.verify = False
 
     def get_cfg(self):
         return self._cfg
