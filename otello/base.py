@@ -22,8 +22,11 @@ class Base:
             raise Exception(e)
 
         self._session = requests.Session()
-        if "pass" in self._cfg:
-            self._session.headers.update({"Authorization", f"Basic {self._cfg['pass']}"})
+        if self._cfg["auth"] is True:
+            if "token" in self._cfg:
+                self._session.headers.update({"Authorization", f"Basic {self._cfg['token']}"})
+            else:
+                raise Exception(f"Missing 'token' field in configuration file: {self._cfg}")
         else:
             self._session.verify = False
 

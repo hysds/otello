@@ -60,7 +60,9 @@ def initialize():
         config['auth'] = True
 
         # Password
-        config['pass'] = getpass.getpass()
+        password = getpass.getpass()
+        token = b64encode(f"{username}:{password}".encode('utf-8')).decode("ascii")
+        config['token'] = token
     else:
         config['auth'] = False
 
