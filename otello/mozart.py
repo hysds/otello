@@ -37,7 +37,7 @@ class Mozart(Base):
         host = self._cfg['host']
         endpoint = os.path.join(host, 'grq/api/v0.1/grq/on-demand')
 
-        req = requests.get(endpoint)
+        req = self._session.get(endpoint)
         if req.status_code != 200:
             raise Exception(req.text)
         res = req.json()
