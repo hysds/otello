@@ -3,7 +3,6 @@ import ast
 import json
 from datetime import datetime, date
 import time
-import requests
 
 from otello.base import Base
 from otello.utils import generate_tags
@@ -38,7 +37,7 @@ class Mozart(Base):
         host = self._cfg['host']
         endpoint = os.path.join(host, 'grq/api/v0.1/grq/on-demand')
 
-        req = requests.get(endpoint, verify=False)
+        req = requests.get(endpoint)
         if req.status_code != 200:
             raise Exception(req.text)
         res = req.json()
@@ -61,7 +60,7 @@ class Mozart(Base):
         endpoint = os.path.join(host, 'grq/api/v0.1/grq/on-demand')
 
         payload = {'id': job}
-        req = requests.get(endpoint, params=payload, verify=False)
+        req = self._session.get(endpoint, params=payload)
         if req.status_code != 200:
             raise Exception(req.text)
         res = req.json()
@@ -123,7 +122,7 @@ class Mozart(Base):
         while True:
             params['page_size'] = page_size
             params['offset'] = offset
-            req = requests.get(endpoint, params=params, verify=False)
+            req = self._session.get(endpoint, params=params)
             if req.status_code != 200:
                 raise Exception(req.text)
             res = req.json()
@@ -215,7 +214,7 @@ class JobType(Base):
         job_endpoint = os.path.join(host, 'grq/api/v0.1/hysds_io/type')
 
         payload = {'id': self.hysds_io}
-        req = requests.get(job_endpoint, params=payload, verify=False)
+        req = self._session.get(job_endpoint, params=payload)
         if req.status_code != 200:
             raise Exception(req.text)
         res = req.json()
@@ -248,7 +247,7 @@ class JobType(Base):
         host = self._cfg['host']
         queue_endpoint = os.path.join(host, 'mozart/api/v0.1/queue/list')
         payload = {'id': self.job_spec}
-        req = requests.get(queue_endpoint, params=payload, verify=False)
+        req = self._session.get(queue_endpoint, params=payload)
         if req.status_code != 200:
             raise Exception(req.text)
         res = req.json()
@@ -492,7 +491,7 @@ class JobType(Base):
         }
         host = self._cfg['host']
         endpoint = os.path.join(host, 'mozart/api/v0.1/job/submit')
-        req = requests.post(endpoint, data=job_payload, verify=False)
+        req = self._session.post(endpoint, data=job_payload)
         if req.status_code != 200:
             raise Exception(req.text)
         res = req.json()
@@ -549,7 +548,7 @@ class Job(Base):
         host = self._cfg['host']
         endpoint = os.path.join(host, 'mozart/api/v0.1/job/status')
         payload = {'id': self.job_id}
-        req = requests.get(endpoint, params=payload, verify=False)
+        req = self._session.get(endpoint, params=payload)
         if req.status_code != 200:
             raise Exception(req.text)
         res = req.json()
@@ -564,7 +563,7 @@ class Job(Base):
         endpoint = os.path.join(host, 'mozart/api/v0.1/job/info')
 
         payload = {'id': self.job_id}
-        req = requests.get(endpoint, params=payload, verify=False)
+        req = self._session.get(endpoint, params=payload)
         if req.status_code != 200:
             raise Exception(req.text)
         res = req.json()
@@ -628,7 +627,7 @@ class Job(Base):
 
         host = self._cfg['host']
         endpoint = os.path.join(host, 'mozart/api/v0.1/job/submit')
-        req = requests.post(endpoint, data=job_payload, verify=False)
+        req = self._session.post(endpoint, data=job_payload)
         if req.status_code != 200:
             raise Exception(req.text)
         res = req.json()
@@ -676,7 +675,7 @@ class Job(Base):
 
         host = self._cfg['host']
         endpoint = os.path.join(host, 'mozart/api/v0.1/job/submit')
-        req = requests.post(endpoint, data=job_payload, verify=False)
+        req = self._session.post(endpoint, data=job_payload)
         if req.status_code != 200:
             raise Exception(req.text)
         res = req.json()
@@ -718,7 +717,7 @@ class Job(Base):
 
         host = self._cfg['host']
         endpoint = os.path.join(host, 'mozart/api/v0.1/job/submit')
-        req = requests.post(endpoint, data=job_payload, verify=False)
+        req = self._session.post(endpoint, data=job_payload)
         if req.status_code != 200:
             raise Exception(req.text)
         res = req.json()
@@ -733,7 +732,7 @@ class Job(Base):
         """
         host = self._cfg['host']
         endpoint = os.path.join(host, 'mozart/api/v0.1/job/products/%s' % self.job_id)
-        req = requests.get(endpoint, verify=False)
+        req = self._session.get(endpoint)
         if req.status_code != 200:
             raise Exception(req.text)
         res = req.json()

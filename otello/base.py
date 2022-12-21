@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import yaml
+import requests
 
 
 class Base:
@@ -19,6 +20,12 @@ class Base:
             raise yaml.YAMLError(e)
         except Exception as e:
             raise Exception(e)
+
+        self._session = requests.Session()
+        if "pass" in self._cfg:
+            self._session.headers.update({"Authorization", f"Basic {self._cfg['pass']}"})
+        else:
+            self._session.verify = False
 
     def get_cfg(self):
         return self._cfg

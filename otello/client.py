@@ -60,8 +60,7 @@ def initialize():
         config['auth'] = True
 
         # Password
-        password = getpass.getpass()
-        # TODO: use username + password to retrieve access_token and refresh_token from SSO provider
+        config['pass'] = getpass.getpass()
     else:
         config['auth'] = False
 
