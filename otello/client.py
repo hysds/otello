@@ -2,6 +2,7 @@ import os
 import yaml
 import getpass
 from pathlib import Path
+from base64 import b64encode
 
 
 def initialize():
