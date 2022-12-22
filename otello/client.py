@@ -1,8 +1,7 @@
 import os
 import yaml
-import getpass
+
 from pathlib import Path
-from base64 import b64encode
 
 
 def initialize():
@@ -59,11 +58,15 @@ def initialize():
     is_auth = input('HySDS cluster authenticated (y/n): ')
     if is_auth.lower() == 'y':
         config['auth'] = True
-
-        # Password
-        password = getpass.getpass()
-        token = b64encode(f"{username}:{password}".encode('utf-8')).decode("ascii")
-        config['token'] = token
+        # Using AWS Secrets Manager for authentication
+        # Current assumption is that the Secret ID will be equal to the username.
+        # If not, end user will change it.
+        user_prompt = 'AWS Secrets Manager ID (current value: %s): ' % config['username']
+        secret_id = input(user_prompt)
+        if secret_id:
+            config['aws_secret_id'] = secret_id
+        else:
+            config['aws_secret_id'] = config['username']
     else:
         config['auth'] = False
 

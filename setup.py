@@ -17,5 +17,6 @@ setup(
         'pyyaml',
         'urllib3',
         'requests',
+        'boto3'
     ]
 )

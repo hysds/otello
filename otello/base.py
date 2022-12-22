@@ -1,7 +1,9 @@
 import os
 from pathlib import Path
 import yaml
+import boto3
 import requests
+import json
 
 
 class Base:
@@ -23,10 +25,19 @@ class Base:
 
         self._session = requests.Session()
         if self._cfg["auth"] is True:
-            if "token" in self._cfg:
-                self._session.headers.update({"Authorization": f"Basic {self._cfg['token']}"})
-            else:
-                raise Exception(f"Missing 'token' field in configuration file: {self._cfg}")
+            try:
+                client = boto3.client("secretsmanager")
+                response = client.get_secret_value(
+                    SecretId=self._cfg["aws_secret_id"]
+                )
+                secret_string = json.loads(response["SecretString"])
+                self._session.auth = (self._cfg["username"],
+                                      secret_string[self._cfg["username"]]
+                                      )
+            except Exception as e:
+                raise Exception(f"Error occurred while trying to set "
+                                f"authentication using AWS Secrets "
+                                f"Manager:\n{str(e)}")
         self._session.verify = False
 
     def get_cfg(self):
