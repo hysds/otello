@@ -48,7 +48,7 @@ class Mozart(Base):
             hysds_io = j['hysds_io']
             job_spec = j['job_spec']
             label = j.get('label')
-            jobs[job_spec] = JobType(hysds_io=hysds_io, job_spec=job_spec, label=label)
+            jobs[job_spec] = JobType(hysds_io=hysds_io, job_spec=job_spec, label=label, session=self._session)
         return jobs
 
     def get_job_type(self, job):
@@ -70,7 +70,7 @@ class Mozart(Base):
         job_spec = job_type['job_spec']
         label = job_type.get('label')
 
-        return JobType(hysds_io=hysds_io, job_spec=job_spec, label=label)
+        return JobType(hysds_io=hysds_io, job_spec=job_spec, label=label, session=self._session)
 
     def get_jobs(self, tag=None, job_type=None, queue=None, priority=None, status=None, start_time=None, end_time=None):
         """
@@ -117,7 +117,7 @@ class Mozart(Base):
                 end_time = end_time.isoformat()
             params['end_time'] = end_time
 
-        js = JobSet()
+        js = JobSet(session=self._session)
         page_size, offset = 100, 0
         while True:
             params['page_size'] = page_size
@@ -131,7 +131,7 @@ class Mozart(Base):
             for job in res['result']:
                 _id = job['id']
                 tags = job['tags']
-                js.append(Job(_id, tags))
+                js.append(Job(_id, tags, session=self._session))
             offset += 100
         return js
 
@@ -171,12 +171,12 @@ class JobType(Base):
         submit_job: submit Job to HySDS, returns a Job class object
     """
 
-    def __init__(self, hysds_io=None, job_spec=None, label=None, cfg=None):
+    def __init__(self, hysds_io=None, job_spec=None, label=None, cfg=None, session=None):
         """
         :param hysds_io: (str) hysds_ios ID
         :param job_spec: (str) job-specification
         """
-        super().__init__(cfg=cfg)
+        super().__init__(cfg=cfg, session=session)
 
         if hysds_io is None or job_spec is None:
             raise Exception("both hysds_io and job_spec must be supplied")
@@ -515,11 +515,11 @@ class Job(Base):
     PURGE_JOB_NAME = 'job-lw-mozart-purge'
     RETRY_JOB_NAME = 'job-lw-mozart-retry'
 
-    def __init__(self, job_id=None, tags=None, cfg=None):
+    def __init__(self, job_id=None, tags=None, cfg=None, session=None):
         """
         :param job_id: str, job UUID
         """
-        super().__init__(cfg=cfg)
+        super().__init__(cfg=cfg, session=session)
         self.job_id = job_id
         if tags is not None:
             if type(tags) == str:
@@ -765,11 +765,11 @@ class JobSet(Base):
         wait_for_completion: wait for all "completion" of jobs
     """
 
-    def __init__(self, job_set=None, cfg=None):
+    def __init__(self, job_set=None, cfg=None, session=None):
         """
         :param job_set: list[Job], list of Job(s)
         """
-        super().__init__(cfg=cfg)
+        super().__init__(cfg=cfg, session=session)
 
         if job_set is None:
             self.job_set = []
