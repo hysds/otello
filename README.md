@@ -34,7 +34,7 @@ host: https://###.##.###.###/
 username: ########
 ```
 
-For authentication to work properly, AWS Secrets Manager should be set up prior to initializing
+For authentication to work properly, [AWS Secrets Manager](https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html) should be set up prior to initializing
 otello with authentication. When cluster authentication is set to `y`, it will then ask for
 the Secrets Manager ID, which is the ID associated with the stored Secret in Secrets Manager.
 If the ID is not specified in the config file, it defaults to the username that was set:
