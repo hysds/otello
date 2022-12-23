@@ -1,6 +1,6 @@
 import os
 import yaml
-import getpass
+
 from pathlib import Path
 
 
@@ -58,10 +58,16 @@ def initialize():
     is_auth = input('HySDS cluster authenticated (y/n): ')
     if is_auth.lower() == 'y':
         config['auth'] = True
-
-        # Password
-        password = getpass.getpass()
-        # TODO: use username + password to retrieve access_token and refresh_token from SSO provider
+        # Using AWS Secrets Manager for authentication
+        # Current assumption is that the Secret ID will be equal to the username.
+        # If not, end user will change it.
+        existing_secret_id = config.get('aws_secret_id', config["username"])
+        user_prompt = f"AWS Secrets Manager ID (current value: {existing_secret_id}): "
+        secret_id = input(user_prompt)
+        if secret_id:
+            config['aws_secret_id'] = secret_id
+        else:
+            config['aws_secret_id'] = existing_secret_id
     else:
         config['auth'] = False
 

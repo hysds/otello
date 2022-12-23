@@ -22,7 +22,7 @@ You can intialize it 1 of 2 ways
 * importing the `otello` library
     * `import otello` and `otello.initialize()`
 
-It will prompt the user to enter the HySDS host and parameters for authentication (will be implemented in the future)
+It will prompt the user to enter the HySDS host and parameters for authentication
 ```bash
 $ otello init
 HySDS host (current value: https://###.##.###.###/):
@@ -34,7 +34,14 @@ host: https://###.##.###.###/
 username: ########
 ```
 
-
+For authentication to work properly, [AWS Secrets Manager](https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html) should be set up prior to initializing
+otello with authentication. When cluster authentication is set to `y`, it will then ask for
+the Secrets Manager ID, which is the ID associated with the stored Secret in Secrets Manager.
+If the ID is not specified in the config file, it defaults to the username that was set:
+```bash
+HySDS cluster authenticated (y/n): y
+AWS Secrets Manager ID (current value: ########): 
+```
 
 ## Continuous Integration (CI)
 HySDS uses Jenkins to run continuous integration (CI)

@@ -1,5 +1,4 @@
 import os
-import requests
 
 # from otello.utils import decorator
 from otello.base import Base
@@ -32,7 +31,7 @@ class CI(Base):
         }
         if self.branch:
             data['branch'] = self.branch
-        req = requests.get(endpoint, params=data, verify=False)
+        req = self._session.get(endpoint, params=data)
         if req.status_code != 200:
             raise Exception(req.text)
         res = req.json()
@@ -51,7 +50,7 @@ class CI(Base):
         }
         if self.branch:
             data['branch'] = self.branch
-        req = requests.post(endpoint, data=data, verify=False)
+        req = self._session.post(endpoint, data=data)
         if req.status_code != 200:
             raise Exception(req.text)
         print(req.text)
@@ -69,7 +68,7 @@ class CI(Base):
         }
         if self.branch:
             payload['branch'] = self.branch
-        req = requests.delete(endpoint, params=payload, verify=False)
+        req = self._session.delete(endpoint, params=payload)
         if req.status_code != 200:
             raise Exception(req.text)
         return req.json()
@@ -87,7 +86,7 @@ class CI(Base):
         }
         if self.branch:
             data['branch'] = self.branch
-        req = requests.post(endpoint, data=data, verify=False)
+        req = self._session.post(endpoint, data=data)
         if req.status_code != 200:
             raise Exception(req.text)
         return req.json()
@@ -109,7 +108,7 @@ class CI(Base):
         if build_number is not None:
             payload['build_number'] = build_number
 
-        req = requests.get(endpoint, params=payload, verify=False)
+        req = self._session.get(endpoint, params=payload)
         if req.status_code != 200:
             raise Exception(req.text)
         return req.json()
@@ -127,7 +126,7 @@ class CI(Base):
         }
         if self.branch:
             payload['branch'] = self.branch
-        req = requests.delete(endpoint, params=payload, verify=False)
+        req = self._session.delete(endpoint, params=payload)
         if req.status_code != 200:
             raise Exception(req.text)
         return req.json()
@@ -148,7 +147,7 @@ class CI(Base):
         if build_number is not None:
             payload['build_number'] = build_number
 
-        req = requests.delete(endpoint, params=payload, verify=False)
+        req = self._session.delete(endpoint, params=payload)
         if req.status_code != 200:
             raise Exception(req.text)
         return req.json()
