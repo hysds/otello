@@ -16,6 +16,7 @@ class Base:
             self._cfg_file = cfg
             with open(cfg, 'r') as f:
                 self._cfg = yaml.safe_load(f)
+                cfg_loaded_from_file = True
         elif isinstance(cfg, dict):
             self._cfg = cfg
         else:
@@ -44,6 +45,12 @@ class Base:
                                         f"authentication using AWS Secrets "
                                         f"Manager:\n{str(e)}")
                 elif self._cfg["password"] is not None:
+                    if cfg_loaded_from_file:
+                        raise ValueError("Password provided in a plaintext "
+                                         "file. Please remove password from "
+                                         "config.yml and use AWS Secrets Manager "
+                                         "instead")
+
                     self._session.auth = (self._cfg["username"],
                                           self._cfg["password"])
                 else:
