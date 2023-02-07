@@ -12,36 +12,42 @@ class Base:
             cfg_dir = os.path.join(str(Path.home()), '.config/otello')
             cfg = os.path.join(cfg_dir, 'config.yml')
 
-        self._cfg_file = cfg
-        try:
+        if isinstance(cfg, str):
+            self._cfg_file = cfg
             with open(cfg, 'r') as f:
                 self._cfg = yaml.safe_load(f)
-        except FileNotFoundError as e:
-            raise FileNotFoundError(e)
-        except yaml.YAMLError as e:
-            raise yaml.YAMLError(e)
-        except Exception as e:
-            raise Exception(e)
+        elif isinstance(cfg, dict):
+            self._cfg = cfg
+        else:
+            raise TypeError("cfg must be a path to a yaml file or a dict")
 
         if session:
             self._session = session
         else:
             self._session = requests.Session()
+
             if self._cfg["auth"] is True:
-                try:
-                    client = boto3.client("secretsmanager")
-                    response = client.get_secret_value(
-                        SecretId=self._cfg["aws_secret_id"]
-                    )
-                    secret_string = json.loads(response["SecretString"])
+                if self._cfg["username"] is None:
+                    raise ValueError("No username provided")
+
+                if self._cfg["aws_secret_id"] is not None:
+                    try:
+                        client = boto3.client("secretsmanager")
+                        response = client.get_secret_value(
+                            SecretId=self._cfg["aws_secret_id"]
+                        )
+                        secret_string = json.loads(response["SecretString"])
+                        self._session.auth = (self._cfg["username"],
+                                              secret_string[self._cfg["username"]])
+                    except Exception as e:
+                        raise Exception(f"Error occurred while trying to set "
+                                        f"authentication using AWS Secrets "
+                                        f"Manager:\n{str(e)}")
+                elif self._cfg["password"] is not None:
                     self._session.auth = (self._cfg["username"],
-                                          secret_string[self._cfg["username"]]
-                                          )
-                except Exception as e:
-                    raise Exception(f"Error occurred while trying to set "
-                                    f"authentication using AWS Secrets "
-                                    f"Manager:\n{str(e)}")
-            self._session.verify = False
+                                          self._cfg["password"])
+                else:
+                    raise ValueError("No password or AWS secret ID provided")
 
     def get_cfg(self):
         return self._cfg
