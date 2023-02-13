@@ -4,10 +4,11 @@ import yaml
 import boto3
 import requests
 import json
+import warnings
 
 
 class Base:
-    def __init__(self, cfg=None, session=None):
+    def __init__(self, cfg=None, session=None, ssl_verify=None):
         if cfg is None:
             cfg_dir = os.path.join(str(Path.home()), '.config/otello')
             cfg = os.path.join(cfg_dir, 'config.yml')
@@ -26,6 +27,27 @@ class Base:
             self._session = session
         else:
             self._session = requests.Session()
+            if ssl_verify is None:
+                warnings.warn(
+                    '''
+                    SSL VERIFICATION IS DISABLED BY DEFAULT. This behavior will
+                    be changed in a future release and code that relies on this
+                    behavior should be updated to EXPLICITLY disable this
+                    security feature only if required; unnecessary usage of this
+                    option may lead to credential compromise.
+                    '''
+                , DeprecationWarning)
+                ssl_verify = False  # depreciated
+            elif ssl_verify is False:
+                warnings.warn(
+                    '''
+                    SSL VERIFICATION HAS BEEN DISABLED! Credentials may
+                    potentially be compromised. Do not use this option unless
+                    necessary and acceptable to the use case.
+                    '''
+                )
+
+            self._session.verify = ssl_verify
 
             if self._cfg["auth"] is True:
                 if self._cfg["username"] is None:
