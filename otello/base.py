@@ -4,44 +4,79 @@ import yaml
 import boto3
 import requests
 import json
+import warnings
 
 
 class Base:
-    def __init__(self, cfg=None, session=None):
+    def __init__(self, cfg=None, session=None, ssl_verify=None):
         if cfg is None:
             cfg_dir = os.path.join(str(Path.home()), '.config/otello')
             cfg = os.path.join(cfg_dir, 'config.yml')
 
-        self._cfg_file = cfg
-        try:
+        if isinstance(cfg, str):
+            self._cfg_file = cfg
             with open(cfg, 'r') as f:
                 self._cfg = yaml.safe_load(f)
-        except FileNotFoundError as e:
-            raise FileNotFoundError(e)
-        except yaml.YAMLError as e:
-            raise yaml.YAMLError(e)
-        except Exception as e:
-            raise Exception(e)
+                cfg_loaded_from_file = True
+        elif isinstance(cfg, dict):
+            self._cfg = cfg
+        else:
+            raise TypeError("cfg must be a path to a yaml file or a dict")
 
         if session:
             self._session = session
         else:
             self._session = requests.Session()
+            if ssl_verify is None:
+                warnings.warn(
+                    '''
+                    SSL VERIFICATION IS DISABLED BY DEFAULT. This behavior will
+                    be changed in a future release and code that relies on this
+                    behavior should be updated to EXPLICITLY disable this
+                    security feature only if required; unnecessary usage of this
+                    option may lead to credential compromise.
+                    '''
+                , DeprecationWarning)
+                ssl_verify = False  # depreciated
+            elif ssl_verify is False:
+                warnings.warn(
+                    '''
+                    SSL VERIFICATION HAS BEEN DISABLED! Credentials may
+                    potentially be compromised. Do not use this option unless
+                    necessary and acceptable to the use case.
+                    '''
+                )
+
+            self._session.verify = ssl_verify
+
             if self._cfg["auth"] is True:
-                try:
-                    client = boto3.client("secretsmanager")
-                    response = client.get_secret_value(
-                        SecretId=self._cfg["aws_secret_id"]
-                    )
-                    secret_string = json.loads(response["SecretString"])
+                if self._cfg["username"] is None:
+                    raise ValueError("No username provided")
+
+                if self._cfg["aws_secret_id"] is not None:
+                    try:
+                        client = boto3.client("secretsmanager")
+                        response = client.get_secret_value(
+                            SecretId=self._cfg["aws_secret_id"]
+                        )
+                        secret_string = json.loads(response["SecretString"])
+                        self._session.auth = (self._cfg["username"],
+                                              secret_string[self._cfg["username"]])
+                    except Exception as e:
+                        raise Exception(f"Error occurred while trying to set "
+                                        f"authentication using AWS Secrets "
+                                        f"Manager:\n{str(e)}")
+                elif self._cfg["password"] is not None:
+                    if cfg_loaded_from_file:
+                        raise ValueError("Password provided in a plaintext "
+                                         "file. Please remove password from "
+                                         "config.yml and use AWS Secrets Manager "
+                                         "instead")
+
                     self._session.auth = (self._cfg["username"],
-                                          secret_string[self._cfg["username"]]
-                                          )
-                except Exception as e:
-                    raise Exception(f"Error occurred while trying to set "
-                                    f"authentication using AWS Secrets "
-                                    f"Manager:\n{str(e)}")
-            self._session.verify = False
+                                          self._cfg["password"])
+                else:
+                    raise ValueError("No password or AWS secret ID provided")
 
     def get_cfg(self):
         return self._cfg
