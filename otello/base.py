@@ -40,11 +40,11 @@ class Base:
 
             self._session.verify = ssl_verify
 
-            if self._cfg["auth"] is True:
-                if self._cfg["username"] is None:
+            if self._cfg.get("auth") is True:
+                if self._cfg.get("username") is None:
                     raise ValueError("No username provided")
 
-                if self._cfg["aws_secret_id"] is not None:
+                if self._cfg.get("aws_secret_id") is not None:
                     try:
                         client = boto3.client("secretsmanager")
                         response = client.get_secret_value(
@@ -57,7 +57,7 @@ class Base:
                         raise Exception(f"Error occurred while trying to set "
                                         f"authentication using AWS Secrets "
                                         f"Manager:\n{str(e)}")
-                elif self._cfg["password"] is not None:
+                elif self._cfg.get("password") is not None:
                     if cfg_loaded_from_file:
                         raise ValueError("Password provided in a plaintext "
                                          "file. Please remove password from "
