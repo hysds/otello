@@ -28,16 +28,7 @@ class Base:
         else:
             self._session = requests.Session()
             if ssl_verify is None:
-                warnings.warn(
-                    '''
-                    SSL VERIFICATION IS DISABLED BY DEFAULT. This behavior will
-                    be changed in a future release and code that relies on this
-                    behavior should be updated to EXPLICITLY disable this
-                    security feature only if required; unnecessary usage of this
-                    option may lead to credential compromise.
-                    '''
-                , DeprecationWarning)
-                ssl_verify = False  # depreciated
+                ssl_verify = True
             elif ssl_verify is False:
                 warnings.warn(
                     '''
