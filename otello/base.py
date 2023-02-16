@@ -13,6 +13,7 @@ class Base:
             cfg_dir = os.path.join(str(Path.home()), '.config/otello')
             cfg = os.path.join(cfg_dir, 'config.yml')
 
+        cfg_loaded_from_file = False
         if isinstance(cfg, str):
             self._cfg_file = cfg
             with open(cfg, 'r') as f:
