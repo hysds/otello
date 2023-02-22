@@ -48,7 +48,7 @@ class Mozart(Base):
             hysds_io = j['hysds_io']
             job_spec = j['job_spec']
             label = j.get('label')
-            jobs[job_spec] = JobType(hysds_io=hysds_io, job_spec=job_spec, label=label, session=self._session)
+            jobs[job_spec] = JobType(hysds_io=hysds_io, job_spec=job_spec, label=label, cfg=self._cfg, session=self._session)
         return jobs
 
     def get_job_type(self, job):
@@ -70,7 +70,7 @@ class Mozart(Base):
         job_spec = job_type['job_spec']
         label = job_type.get('label')
 
-        return JobType(hysds_io=hysds_io, job_spec=job_spec, label=label, session=self._session)
+        return JobType(hysds_io=hysds_io, job_spec=job_spec, label=label, cfg=self._cfg, session=self._session)
 
     def get_jobs(self, tag=None, job_type=None, queue=None, priority=None, status=None, start_time=None, end_time=None):
         """
