@@ -13,6 +13,7 @@ class Base:
             cfg_dir = os.path.join(str(Path.home()), '.config/otello')
             cfg = os.path.join(cfg_dir, 'config.yml')
 
+        cfg_loaded_from_file = False
         if isinstance(cfg, str):
             self._cfg_file = cfg
             with open(cfg, 'r') as f:
@@ -28,16 +29,7 @@ class Base:
         else:
             self._session = requests.Session()
             if ssl_verify is None:
-                warnings.warn(
-                    '''
-                    SSL VERIFICATION IS DISABLED BY DEFAULT. This behavior will
-                    be changed in a future release and code that relies on this
-                    behavior should be updated to EXPLICITLY disable this
-                    security feature only if required; unnecessary usage of this
-                    option may lead to credential compromise.
-                    '''
-                , DeprecationWarning)
-                ssl_verify = False  # depreciated
+                ssl_verify = True
             elif ssl_verify is False:
                 warnings.warn(
                     '''
@@ -49,11 +41,11 @@ class Base:
 
             self._session.verify = ssl_verify
 
-            if self._cfg["auth"] is True:
-                if self._cfg["username"] is None:
+            if self._cfg.get("auth") is True:
+                if self._cfg.get("username") is None:
                     raise ValueError("No username provided")
 
-                if self._cfg["aws_secret_id"] is not None:
+                if self._cfg.get("aws_secret_id") is not None:
                     try:
                         client = boto3.client("secretsmanager")
                         response = client.get_secret_value(
@@ -66,7 +58,7 @@ class Base:
                         raise Exception(f"Error occurred while trying to set "
                                         f"authentication using AWS Secrets "
                                         f"Manager:\n{str(e)}")
-                elif self._cfg["password"] is not None:
+                elif self._cfg.get("password") is not None:
                     if cfg_loaded_from_file:
                         raise ValueError("Password provided in a plaintext "
                                          "file. Please remove password from "

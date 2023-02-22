@@ -48,7 +48,7 @@ class Mozart(Base):
             hysds_io = j['hysds_io']
             job_spec = j['job_spec']
             label = j.get('label')
-            jobs[job_spec] = JobType(hysds_io=hysds_io, job_spec=job_spec, label=label, session=self._session)
+            jobs[job_spec] = JobType(hysds_io=hysds_io, job_spec=job_spec, label=label, cfg=self._cfg, session=self._session)
         return jobs
 
     def get_job_type(self, job):
@@ -70,7 +70,7 @@ class Mozart(Base):
         job_spec = job_type['job_spec']
         label = job_type.get('label')
 
-        return JobType(hysds_io=hysds_io, job_spec=job_spec, label=label, session=self._session)
+        return JobType(hysds_io=hysds_io, job_spec=job_spec, label=label, cfg=self._cfg, session=self._session)
 
     def get_jobs(self, tag=None, job_type=None, queue=None, priority=None, status=None, start_time=None, end_time=None):
         """
@@ -134,6 +134,27 @@ class Mozart(Base):
                 js.append(Job(_id, tags, session=self._session))
             offset += 100
         return js
+
+    def get_job_by_id(self, id):
+        """
+        get job by id
+        :param id: str; job id
+        """
+
+        username = self._cfg.get('username')
+        if username is None:
+            raise RuntimeError("username not found, please initialize otello")
+
+        host = self._cfg['host']
+        endpoint = os.path.join(host, 'mozart/api/v0.1/job/info')
+
+        params = {'id': id}
+        req = self._session.get(endpoint, params=params)
+        if req.status_code != 200:
+            raise Exception(req.text)
+
+        res = req.json()
+        return Job(id, res['tags'], cfg=self._cfg, session=self._session)
 
     def get_failed_jobs(self, **kwargs):
         kwargs['status'] = Mozart.FAILED
