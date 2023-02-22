@@ -154,7 +154,7 @@ class Mozart(Base):
             raise Exception(req.text)
 
         res = req.json()
-        return Job(id, res['tags'], cfg=self._cfg, session=self._session)
+        return Job(id, res['result']['tags'], cfg=self._cfg, session=self._session)
 
     def get_failed_jobs(self, **kwargs):
         kwargs['status'] = Mozart.FAILED
