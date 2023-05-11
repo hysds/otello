@@ -97,7 +97,7 @@ m = Mozart()
 `JobType` object methods:
 
 | method | desc | input | return |
-| ------ | ---- | ----- | ------ |
+| ------ | ---- |-------| ------ |
 | `initialize` | (run this first) retrieve and set the job input parameters and wiring as class attributes | | |
 | `get_queues` | retrieve the list of available and recommended queues | | |
 | `describe` | prints the basic description and wiring of the Job | | |
@@ -105,7 +105,7 @@ m = Mozart()
 | `set_input_dataset` | sets the dataset parameters | `dataset <Dict>` | |
 | `get_input_params` | returns the user defined parameters | | `Dict[str, str]` |
 | `get_input_dataset` | returns the dataset parameters | | `Dict[str, str]` |
-| `submit_job` | submits the Job to HySDS with the tuned parameters | `queue<str:optional>`, `priority<int>`, `tag<str>` | `Job` object
+| `submit_job` | submits the Job to HySDS with the tuned parameters | `queue<str:optional>`, `priority<int>`, `tag<str>`, `time_limit<int:optional>`, `soft_time_limit<int:optional>`, `disk_usage<str:optional>` | `Job` object
 
 basic flow of `otello`'s job management:
 ---
