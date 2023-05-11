@@ -469,7 +469,7 @@ class JobType(Base):
     def get_input_params(self):
         return self._params['input_params']
 
-    def submit_job(self, queue=None, tag=None, priority=1):
+    def submit_job(self, queue=None, tag=None, priority=1, time_limit=None, soft_time_limit=None, disk_usage=None):
         """
         job_payload = {
             'queue': queue,
@@ -483,6 +483,9 @@ class JobType(Base):
         :param tag: str, job tag to track
         :param priority: int, job priority [1-9] in RabbitMQ
         :param queue:
+        :param time_limit: int, soft time limit for job execution
+        :param soft_time_limit: int,  hard time limit for job execution
+        :param disk_usage: str, disk usage for PGE (KB, MB, GB, etc)
         :return: Job class object with _id
         """
         if queue is None and self.default_queue is None:
@@ -510,6 +513,21 @@ class JobType(Base):
             'params': json.dumps(params),
             'enable_dedup': False
         }
+        if time_limit is not None:
+            if type(time_limit) not in {int, float}:
+                raise TypeError("time_limit must be of type int,float")
+            if time_limit <= 0:
+                raise ValueError("time_limit must be greater than 0")
+            job_payload["time_limit"] = time_limit
+        if soft_time_limit is not None:
+            if type(soft_time_limit) not in {int, float}:
+                raise TypeError("soft_time_limit must be of type int,float")
+            if soft_time_limit <= 0:
+                raise ValueError("soft_time_limit must be greater than 0")
+            job_payload["soft_time_limit"] = soft_time_limit
+        if disk_usage is not None:
+            job_payload["disk_usage"] = disk_usage
+
         host = self._cfg['host']
         endpoint = os.path.join(host, 'mozart/api/v0.1/job/submit')
         req = self._session.post(endpoint, data=job_payload)
