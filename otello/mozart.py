@@ -469,7 +469,7 @@ class JobType(Base):
     def get_input_params(self):
         return self._params['input_params']
 
-    def submit_job(self, queue=None, tag=None, priority=1, time_limit=None, soft_time_limit=None, disk_usage=None, publish_override_ok=False):
+    def submit_job(self, queue=None, tag=None, priority=1, time_limit=None, soft_time_limit=None, disk_usage=None, publish_overwrite_ok=False):
         """
         job_payload = {
             'queue': queue,
@@ -486,7 +486,7 @@ class JobType(Base):
         :param time_limit: int, soft time limit for job execution
         :param soft_time_limit: int,  hard time limit for job execution
         :param disk_usage: str, disk usage for PGE (KB, MB, GB, etc)
-        :param publish_override_ok: enable a job to override an existing dataset on publish
+        :param publish_overwrite_ok: enable a job to overwrite an existing dataset on publish
         :return: Job class object with _id
         """
         if queue is None and self.default_queue is None:
@@ -513,7 +513,7 @@ class JobType(Base):
             'type': self.job_spec,
             'params': json.dumps(params),
             'enable_dedup': False,
-            'publish_override_ok': publish_override_ok
+            'publish_overwrite_ok': publish_overwrite_ok
         }
         if time_limit is not None:
             if type(time_limit) not in {int, float}:
