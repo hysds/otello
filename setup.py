@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='otello',
-    version='2.0.1',
+    version='2.0.2',
     long_description='Wrapper tool for notebook users to communicate with HySDS components',
     packages=find_packages(),
     include_package_data=True,
