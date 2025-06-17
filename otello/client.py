@@ -27,7 +27,7 @@ def initialize():
 
     config = {}
     try:
-        with open(cfg_file, 'r') as f:
+        with open(cfg_file) as f:
             config = yaml.safe_load(f)
     except FileNotFoundError:
         print('%s not found\n' % cfg_file)
