@@ -1,7 +1,7 @@
 import os
 import ast
 import json
-from datetime import datetime, date, UTC
+from datetime import datetime, date, timezone
 import time
 
 from otello.base import Base
@@ -788,7 +788,7 @@ class Job(Base):
         while True:
             try:
                 status = self.get_status()
-                print(f"{self}: {status} {datetime.now(UTC).replace(tzinfo=None).isoformat()}")
+                print(f"{self}: {status} {datetime.now(timezone.utc).replace(tzinfo=None).isoformat()}")
                 if status in ('job-failed', 'job-deduped', 'job-completed', 'job-offline'):
                     return status
             except Exception as e:
@@ -858,7 +858,7 @@ class JobSet(Base):
             for job in self.job_set:
                 try:
                     status = job.get_status()
-                    print(f"{job}: {status} {datetime.now(UTC).replace(tzinfo=None).isoformat()}")
+                    print(f"{job}: {status} {datetime.now(timezone.utc).replace(tzinfo=None).isoformat()}")
                     if status in ('job-failed', 'job-deduped', 'job-completed', 'job-offline'):
                         completed_jobs += 1
                 except Exception as e:
