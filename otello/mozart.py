@@ -1,7 +1,7 @@
 import os
 import ast
 import json
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 import time
 
 from otello.base import Base
@@ -222,7 +222,7 @@ class JobType(Base):
         :return: str
         """
         if self.label:
-            return 'HySDS Job: %s (%s)' % (self.label, self.job_spec)
+            return 'HySDS Job: {} ({})'.format(self.label, self.job_spec)
         else:
             return 'HySDS Job: %s' % self.job_spec
 
@@ -388,7 +388,7 @@ class JobType(Base):
             placeholder = p.get('placeholder', None)
             optional = p.get('optional', False)
 
-            prompt = 'NAME: %s (%s)' % (param_name, param_type)
+            prompt = 'NAME: {} ({})'.format(param_name, param_type)
             if placeholder:
                 prompt += ' (%s)' % placeholder
             print(prompt)
@@ -575,9 +575,9 @@ class Job(Base):
     def __str__(self):
         if self.tags is not None:
             if len(self.tags) == 1:
-                return 'Tag: %s, ID: <%s>' % (self.tags[0], self.job_id)
+                return 'Tag: {}, ID: <{}>'.format(self.tags[0], self.job_id)
             else:
-                return 'Tags: %s, ID: <%s>' % (self.tags, self.job_id)
+                return 'Tags: {}, ID: <{}>'.format(self.tags, self.job_id)
         else:
             return 'Job ID: <%s>' % self.job_id
 
@@ -661,7 +661,7 @@ class Job(Base):
             'priority': priority,
             'job_name': Job.PURGE_JOB_NAME,
             'tags': '["%s"]' % tags,
-            'type': '%s:%s' % (Job.PURGE_JOB_NAME, version),
+            'type': '{}:{}'.format(Job.PURGE_JOB_NAME, version),
             'params': json.dumps(params),
             'enable_dedup': False
         }
@@ -709,7 +709,7 @@ class Job(Base):
             'priority': priority,
             'job_name': Job.PURGE_JOB_NAME,
             'tags': '["%s"]' % tags,
-            'type': '%s:%s' % (Job.PURGE_JOB_NAME, version),
+            'type': '{}:{}'.format(Job.PURGE_JOB_NAME, version),
             'params': json.dumps(params),
             'enable_dedup': False
         }
@@ -751,7 +751,7 @@ class Job(Base):
             'priority': priority,
             'job_name': Job.RETRY_JOB_NAME,
             'tags': '["%s"]' % tags,
-            'type': '%s:%s' % (Job.RETRY_JOB_NAME, version),
+            'type': '{}:{}'.format(Job.RETRY_JOB_NAME, version),
             'params': json.dumps(params),
             'enable_dedup': False
         }
@@ -788,7 +788,7 @@ class Job(Base):
         while True:
             try:
                 status = self.get_status()
-                print(f"{self}: {status} {datetime.utcnow().isoformat('T')}")
+                print(f"{self}: {status} {datetime.now(timezone.utc).replace(tzinfo=None).isoformat()}")
                 if status in ('job-failed', 'job-deduped', 'job-completed', 'job-offline'):
                     return status
             except Exception as e:
@@ -858,7 +858,7 @@ class JobSet(Base):
             for job in self.job_set:
                 try:
                     status = job.get_status()
-                    print(f"{job}: {status} {datetime.utcnow().isoformat('T')}")
+                    print(f"{job}: {status} {datetime.now(timezone.utc).replace(tzinfo=None).isoformat()}")
                     if status in ('job-failed', 'job-deduped', 'job-completed', 'job-offline'):
                         completed_jobs += 1
                 except Exception as e:

@@ -16,7 +16,7 @@ class Base:
         cfg_loaded_from_file = False
         if isinstance(cfg, str):
             self._cfg_file = cfg
-            with open(cfg, 'r') as f:
+            with open(cfg) as f:
                 self._cfg = yaml.safe_load(f)
                 cfg_loaded_from_file = True
         elif isinstance(cfg, dict):

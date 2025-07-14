@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def generate_tags(job_type):
-    ts = datetime.now().isoformat()
-    return 'otello_%s_%s' % (job_type, ts)
+    ts = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+    return 'otello_{}_{}'.format(job_type, ts)
