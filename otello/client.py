@@ -55,7 +55,18 @@ def initialize():
     is_auth = input('HySDS cluster authenticated (y/n): ')
     if is_auth.lower() == 'y':
         config['auth'] = True
-        config['token'] = get_authentication_token(config['host'], config['username'])
+        use_aws_secrets = input('Use AWS Secrets Manager for authentication? (y/n): ')
+        if use_aws_secrets.lower() == 'y':
+            existing_secret_id = config.get('aws_secret_id', config["username"])
+            user_prompt = f"AWS Secrets Manager ID (current value: {existing_secret_id}): "
+            secret_id = input(user_prompt)
+            if secret_id:
+                config['aws_secret_id'] = secret_id
+            else:
+                config['aws_secret_id'] = existing_secret_id
+            config['token'] = get_authentication_token(config['host'], config['username'], aws_secret_id=config['aws_secret_id'])
+        else:
+            config['token'] = get_authentication_token(config['host'], config['username'])
     else:
         config['auth'] = False
 
