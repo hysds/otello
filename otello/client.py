@@ -2,11 +2,11 @@ import os
 import yaml
 
 from pathlib import Path
+from otello.auth import get_authentication_token
 
 
 def initialize():
     """initialize .cfg file
-
     prompt for user input:
     1. check ~/.config/otello/otello.cfg if it exists
     2. prompt user for HySDS host (Mozart IP or DNS)
@@ -37,37 +37,25 @@ def initialize():
         print(e)
 
     # HySDS host
-    existing_host = config.get('host')
-    host_prompt = 'HySDS host (current value: %s): ' % existing_host if existing_host else 'HySDS host: '
-    host = input(host_prompt)
-    if host:
-        config['host'] = host
+    host = config.get('host')
+    host_prompt = 'HySDS host (current value: %s): ' % host if host else 'HySDS host: '
+    host_input = input(host_prompt)
+    config['host'] = host_input or host
+    if not config['host']:
+        raise RuntimeError("Please input HySDS host")
 
     # Username
-    existing_user = config.get('username')
-    user_prompt = 'Username (current value: %s): ' % existing_user if existing_user else 'Username: '
-    username = input(user_prompt)
-    if username:
-        config['username'] = username
-    else:
-        if existing_user:
-            config['username'] = existing_user
-        else:
-            raise RuntimeError("Please input user")
+    username = config.get('username')
+    user_prompt = 'Username (current value: %s): ' % username if username else 'Username: '
+    username_input = input(user_prompt)
+    config['username'] = username_input or username
+    if not config['username']:
+        raise RuntimeError("Please input user")
 
     is_auth = input('HySDS cluster authenticated (y/n): ')
     if is_auth.lower() == 'y':
         config['auth'] = True
-        # Using AWS Secrets Manager for authentication
-        # Current assumption is that the Secret ID will be equal to the username.
-        # If not, end user will change it.
-        existing_secret_id = config.get('aws_secret_id', config["username"])
-        user_prompt = f"AWS Secrets Manager ID (current value: {existing_secret_id}): "
-        secret_id = input(user_prompt)
-        if secret_id:
-            config['aws_secret_id'] = secret_id
-        else:
-            config['aws_secret_id'] = existing_secret_id
+        config['token'] = get_authentication_token(config['host'], config['username'])
     else:
         config['auth'] = False
 

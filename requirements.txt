@@ -2,3 +2,4 @@ pyyaml
 urllib3
 requests
 click
+boto3
