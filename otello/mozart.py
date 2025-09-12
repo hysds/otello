@@ -469,7 +469,7 @@ class JobType(Base):
     def get_input_params(self):
         return self._params['input_params']
 
-    def submit_job(self, queue=None, tag=None, priority=1, time_limit=None, soft_time_limit=None, disk_usage=None, publish_overwrite_ok=False, enable_dedup=False, name=None):
+    def submit_job(self, queue=None, tag=None, priority=1, time_limit=None, soft_time_limit=None, disk_usage=None, publish_overwrite_ok=False, enable_dedup=False, name=None, payload_hash=None):
         """
         job_payload = {
             'queue': queue,
@@ -513,6 +513,7 @@ class JobType(Base):
             'type': self.job_spec,
             'params': json.dumps(params),
             'enable_dedup': enable_dedup,
+            'payload_hash': payload_hash,
             'publish_overwrite_ok': publish_overwrite_ok
         }
         if time_limit is not None:
