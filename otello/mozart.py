@@ -779,17 +779,23 @@ class Job(Base):
         res = req.json()
         return res['results']
 
-    def wait_for_completion(self):
+    def wait_for_completion(self, complete_statuses=None):
         """
         will loop (with 30 second delay) until the job compeltes (or fails)
         :return: str: job status when job completed (or fails)
         """
+        statuses = ['job-failed', 'job-deduped', 'job-completed', 'job-offline']
+        if complete_statuses:
+            if isinstance(complete_statuses, str):
+                statuses = [complete_statuses]
+            else:
+                statuses = complete_statuses
         time.sleep(3)
         while True:
             try:
                 status = self.get_status()
                 print(f"{self}: {status} {datetime.now(timezone.utc).replace(tzinfo=None).isoformat()}")
-                if status in ('job-failed', 'job-deduped', 'job-completed', 'job-offline'):
+                if status in statuses:
                     return status
             except Exception as e:
                 print(e)
