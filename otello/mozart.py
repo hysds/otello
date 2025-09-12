@@ -469,12 +469,12 @@ class JobType(Base):
     def get_input_params(self):
         return self._params['input_params']
 
-    def submit_job(self, queue=None, tag=None, priority=1, time_limit=None, soft_time_limit=None, disk_usage=None, publish_overwrite_ok=False):
+    def submit_job(self, queue=None, tag=None, priority=1, time_limit=None, soft_time_limit=None, disk_usage=None, publish_overwrite_ok=False, enable_dedup=False, name=None):
         """
         job_payload = {
             'queue': queue,
             'priority': '3',
-            'job_name': job_type,
+            'name': job_type,
             'tags': '["{}_{}"]'.format(tag_name, slc_id),
             'type': "{}:{}".format(job_type, job_release),
             'params': json.dumps(params),
@@ -508,11 +508,11 @@ class JobType(Base):
             'username': username,
             'queue': queue or self.default_queue,
             'priority': priority,
-            'job_name': job_split[0],
+            'name': name if name is not None else job_split[0],
             'tags': '["%s"]' % tag,
             'type': self.job_spec,
             'params': json.dumps(params),
-            'enable_dedup': False,
+            'enable_dedup': enable_dedup,
             'publish_overwrite_ok': publish_overwrite_ok
         }
         if time_limit is not None:
